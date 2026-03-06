@@ -609,6 +609,10 @@ struct CoordinateOperationFactory::Private {
                               Private::Context &context);
 
     static std::vector<CoordinateOperationNNPtr>
+    findOpsInRegistryDirectFrom(const crs::CRSNNPtr &sourceCRS,
+                                Private::Context &context);
+
+    static std::vector<CoordinateOperationNNPtr>
     findsOpsInRegistryWithIntermediate(
         const crs::CRSNNPtr &sourceCRS, const crs::CRSNNPtr &targetCRS,
         Private::Context &context,
@@ -1976,6 +1980,71 @@ CoordinateOperationFactory::Private::findOpsInRegistryDirectTo(
             if (authName == "PROJ") {
                 // Do not stop at the first transformations available in
                 // the PROJ namespace, but allow the next authority to continue
+                continue;
+            }
+            if (!res.empty()) {
+                auto resFiltered =
+                    FilterResults(res, context.context, context.extent1,
+                                  context.extent2, false)
+                        .getRes();
+#ifdef TRACE_CREATE_OPERATIONS
+                logTrace("filtering reduced from " +
+                         toString(static_cast<int>(res.size())) + " to " +
+                         toString(static_cast<int>(resFiltered.size())));
+#endif
+                return resFiltered;
+            }
+        }
+    }
+    return std::vector<CoordinateOperationNNPtr>();
+}
+
+// ---------------------------------------------------------------------------
+
+// Look in the authority registry for operations from sourceCRS
+std::vector<CoordinateOperationNNPtr>
+CoordinateOperationFactory::Private::findOpsInRegistryDirectFrom(
+    const crs::CRSNNPtr &sourceCRS, Private::Context &context) {
+#ifdef TRACE_CREATE_OPERATIONS
+    ENTER_BLOCK("findOpsInRegistryDirectFrom(" +
+                objectAsStr(sourceCRS.get()) + " --> {any})");
+#endif
+
+    const auto &authFactory = context.context->getAuthorityFactory();
+    assert(authFactory);
+
+    std::list<std::pair<std::string, std::string>> ids;
+    buildCRSIds(sourceCRS, context, ids);
+
+    const auto gridAvailabilityUse = context.context->getGridAvailabilityUse();
+    for (const auto &id : ids) {
+        const auto &srcAuthName = id.first;
+        const auto &srcCode = id.second;
+
+        const auto authorities(getCandidateAuthorities(
+            authFactory, srcAuthName, srcAuthName));
+        std::vector<CoordinateOperationNNPtr> res;
+        for (const auto &authName : authorities) {
+            const auto tmpAuthFactory = io::AuthorityFactory::create(
+                authFactory->databaseContext(), authName);
+            auto resTmp =
+                tmpAuthFactory->createFromCoordinateReferenceSystemCodes(
+                    srcAuthName, srcCode, std::string(), std::string(),
+                    context.context->getUsePROJAlternativeGridNames(),
+
+                    gridAvailabilityUse ==
+                            CoordinateOperationContext::GridAvailabilityUse::
+                                DISCARD_OPERATION_IF_MISSING_GRID ||
+                        gridAvailabilityUse ==
+                            CoordinateOperationContext::GridAvailabilityUse::
+                                KNOWN_AVAILABLE,
+                    gridAvailabilityUse ==
+                        CoordinateOperationContext::GridAvailabilityUse::
+                            KNOWN_AVAILABLE,
+                    context.context->getDiscardSuperseded(), true, true,
+                    context.extent1, context.extent2);
+            res.insert(res.end(), resTmp.begin(), resTmp.end());
+            if (authName == "PROJ") {
                 continue;
             }
             if (!res.empty()) {
@@ -3938,6 +4007,71 @@ bool CoordinateOperationFactory::Private::createOperationsFromDatabase(
     // bother generating synthetic transforms.
     if (hasPerfectAccuracyResult(res, context)) {
         return true;
+    }
+
+    // Special case for EngineeringCRS: if no direct transformation found,
+    // look up all registered transformations from the engineering CRS and
+    // try to chain through them to reach the target CRS.
+    // This handles cases like engineering CRS → ProjectedCRS_A (registered)
+    // chained with ProjectedCRS_A → ProjectedCRS_B (same datum reprojection).
+    if (res.empty()) {
+        auto engSrc =
+            dynamic_cast<const crs::EngineeringCRS *>(sourceCRS.get());
+        auto engDst =
+            dynamic_cast<const crs::EngineeringCRS *>(targetCRS.get());
+        if (engSrc && !engDst) {
+            auto opsFromEng = findOpsInRegistryDirectFrom(sourceCRS, context);
+            for (const auto &opFromEng : opsFromEng) {
+                auto intermediateCRS = opFromEng->targetCRS();
+                if (intermediateCRS &&
+                    !intermediateCRS->_isEquivalentTo(
+                        targetCRS.get(),
+                        util::IComparable::Criterion::EQUIVALENT)) {
+                    auto opsToTarget = createOperations(
+                        NN_NO_CHECK(intermediateCRS), sourceEpoch, targetCRS,
+                        targetEpoch, context);
+                    for (const auto &opToTarget : opsToTarget) {
+                        try {
+                            res.emplace_back(
+                                ConcatenatedOperation::createComputeMetadata(
+                                    {opFromEng, opToTarget},
+                                    context.disallowEmptyIntersection()));
+                        } catch (
+                            const InvalidOperationEmptyIntersection &) {
+                        }
+                    }
+                }
+            }
+            if (!res.empty()) {
+                return true;
+            }
+        } else if (engDst && !engSrc) {
+            auto opsToEng = findOpsInRegistryDirectTo(targetCRS, context);
+            for (const auto &opToEng : opsToEng) {
+                auto intermediateCRS = opToEng->sourceCRS();
+                if (intermediateCRS &&
+                    !intermediateCRS->_isEquivalentTo(
+                        sourceCRS.get(),
+                        util::IComparable::Criterion::EQUIVALENT)) {
+                    auto opsFromSource = createOperations(
+                        sourceCRS, sourceEpoch,
+                        NN_NO_CHECK(intermediateCRS), targetEpoch, context);
+                    for (const auto &opFromSource : opsFromSource) {
+                        try {
+                            res.emplace_back(
+                                ConcatenatedOperation::createComputeMetadata(
+                                    {opFromSource, opToEng},
+                                    context.disallowEmptyIntersection()));
+                        } catch (
+                            const InvalidOperationEmptyIntersection &) {
+                        }
+                    }
+                }
+            }
+            if (!res.empty()) {
+                return true;
+            }
+        }
     }
 
     bool doFilterAndCheckPerfectOp = false;

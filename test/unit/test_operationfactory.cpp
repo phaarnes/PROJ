@@ -12142,3 +12142,52 @@ TEST(operation, createOperation_defmodel_from_database) {
               "+step +proj=unitconvert +xy_in=rad +z_in=m +xy_out=deg +z_out=m "
               "+step +proj=axisswap +order=2,1");
 }
+
+// ---------------------------------------------------------------------------
+
+TEST(
+    operation,
+    engineeringCRS_to_projectedCRS_through_intermediate_same_datum) {
+    // Test that PROJ can compose a pipeline from an engineering CRS to a
+    // projected CRS via chaining through an intermediate projected CRS that
+    // has a registered transformation from the engineering CRS.
+    //
+    // EPSG:5800 (Astra Minas Grid) has a registered transformation
+    // (EPSG:1035) to EPSG:22192 (Campo Inchauspe / Argentina 2).
+    // EPSG:22193 (Campo Inchauspe / Argentina 3) shares the same datum
+    // (Campo Inchauspe) but a different zone.
+    // PROJ should chain: engineering → Argentina 2 → inv(zone 2) → zone 3.
+    auto authFactory =
+        AuthorityFactory::create(DatabaseContext::create(), "EPSG");
+
+    // Direct transformation should work (EPSG:1035)
+    {
+        auto ctxt =
+            CoordinateOperationContext::create(authFactory, nullptr, 0.0);
+        ctxt->setSourceAndTargetCRSExtentUse(
+            CoordinateOperationContext::SourceTargetCRSExtentUse::NONE);
+        auto list = CoordinateOperationFactory::create()->createOperations(
+            authFactory->createCoordinateReferenceSystem("5800"),
+            authFactory->createCoordinateReferenceSystem("22192"), ctxt);
+        ASSERT_GE(list.size(), 1U);
+        EXPECT_EQ(list[0]->nameStr(),
+                  "Astra Minas to Campo Inchauspe / Argentina 2 (1)");
+    }
+
+    // Chained transformation to a different zone on the same datum
+    {
+        auto ctxt =
+            CoordinateOperationContext::create(authFactory, nullptr, 0.0);
+        ctxt->setSourceAndTargetCRSExtentUse(
+            CoordinateOperationContext::SourceTargetCRSExtentUse::NONE);
+        auto list = CoordinateOperationFactory::create()->createOperations(
+            authFactory->createCoordinateReferenceSystem("5800"),
+            authFactory->createCoordinateReferenceSystem("22193"), ctxt);
+        ASSERT_GE(list.size(), 1U);
+        // Should chain through the registered transformation to Argentina 2,
+        // then reproject from zone 2 to zone 3 (same datum)
+        EXPECT_EQ(list[0]->nameStr(),
+                  "Astra Minas to Campo Inchauspe / Argentina 2 (1) + "
+                  "Inverse of Argentina zone 2 + Argentina zone 3");
+    }
+}
