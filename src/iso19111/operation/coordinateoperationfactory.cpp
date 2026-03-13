@@ -4600,16 +4600,15 @@ std::vector<CoordinateOperationNNPtr> CoordinateOperationFactory::Private::
             }
             // Collect all registered source-to-candidate operations, which
             // may differ in accuracy or area of use, for later ranking.
-            auto opsFirst = createOperations(sourceCRS, sourceEpoch,
-                                             candidateVert, sourceEpoch,
-                                             context);
+            auto opsFirst = createOperations(
+                sourceCRS, sourceEpoch, candidateVert, sourceEpoch, context);
             if (!opsFirst.empty()) {
                 // The candidate-to-target conversion is expected to be a
                 // trivial unit or axis change, so we only use the first
                 // result (opsSecond.front()).
-                const auto opsSecond = createOperations(
-                    candidateVert, sourceEpoch, targetCRS, targetEpoch,
-                    context);
+                const auto opsSecond =
+                    createOperations(candidateVert, sourceEpoch, targetCRS,
+                                     targetEpoch, context);
                 if (!opsSecond.empty()) {
                     for (const auto &opFirst : opsFirst) {
                         if (hasIdentifiers(opFirst)) {
@@ -4645,9 +4644,9 @@ std::vector<CoordinateOperationNNPtr> CoordinateOperationFactory::Private::
             auto opsSecond = createOperations(candidateVert, sourceEpoch,
                                               targetCRS, targetEpoch, context);
             if (!opsSecond.empty()) {
-                const auto opsFirst = createOperations(
-                    sourceCRS, sourceEpoch, candidateVert, sourceEpoch,
-                    context);
+                const auto opsFirst =
+                    createOperations(sourceCRS, sourceEpoch, candidateVert,
+                                     sourceEpoch, context);
                 if (!opsFirst.empty()) {
                     for (const auto &opSecond : opsSecond) {
                         if (hasIdentifiers(opSecond)) {
