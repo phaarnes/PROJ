@@ -3097,10 +3097,21 @@ WKTParser::Private::buildCS(const WKTNodeNNPtr &node, /* maybe null */
         }
     } else if (ci_equal(csType, CartesianCS::WKT2_TYPE)) {
         if (axisCount == 2) {
-            return CartesianCS::create(csMap, axisList[0], axisList[1]);
-        } else if (axisCount == 3) {
+            if (axisList[0]->unit() != axisList[1]->unit()) {
+                emitRecoverableWarning(
+                    "All axis of a CartesianCS must have the same unit");
+            }
             return CartesianCS::create(csMap, axisList[0], axisList[1],
-                                       axisList[2]);
+                                       /* enforceSameUnit = */ false);
+        } else if (axisCount == 3) {
+            if (axisList[0]->unit() != axisList[1]->unit() ||
+                axisList[0]->unit() != axisList[2]->unit()) {
+                emitRecoverableWarning(
+                    "All axis of a CartesianCS must have the same unit");
+            }
+            return CartesianCS::create(csMap, axisList[0], axisList[1],
+                                       axisList[2],
+                                       /* enforceSameUnit = */ false);
         }
     } else if (ci_equal(csType, AffineCS::WKT2_TYPE)) {
         if (axisCount == 2) {
@@ -5943,6 +5954,7 @@ BaseObjectNNPtr WKTParser::Private::build(const WKTNodeNNPtr &node) {
 class JSONParser {
     DatabaseContextPtr dbContext_{};
     std::string deformationModelName_{};
+    PJ_CONTEXT *ctx_ = nullptr;
 
     static std::string getString(const json &j, const char *key);
     static json getObject(const json &j, const char *key);
@@ -6053,11 +6065,26 @@ class JSONParser {
                                  NN_NO_CHECK(csCast));
     }
 
+    void emitRecoverableWarning(const std::string &warningMsg) {
+        if (ctx_) {
+            proj_context_log_debug(ctx_, "PROJJSON parsing: %s",
+                                   warningMsg.c_str());
+        }
+    }
+
+    JSONParser(const JSONParser &) = delete;
+    JSONParser &operator=(const JSONParser &) = delete;
+
   public:
     JSONParser() = default;
 
     JSONParser &attachDatabaseContext(const DatabaseContextPtr &dbContext) {
         dbContext_ = dbContext;
+        return *this;
+    }
+
+    JSONParser &attachContext(PJ_CONTEXT *ctx) {
+        ctx_ = ctx;
         return *this;
     }
 
@@ -7113,11 +7140,22 @@ CoordinateSystemNNPtr JSONParser::buildCS(const json &j) {
     }
     if (subtype == CartesianCS::WKT2_TYPE) {
         if (axisCount == 2) {
-            return CartesianCS::create(csMap, axisList[0], axisList[1]);
+            if (axisList[0]->unit() != axisList[1]->unit()) {
+                emitRecoverableWarning(
+                    "All axis of a CartesianCS must have the same unit");
+            }
+            return CartesianCS::create(csMap, axisList[0], axisList[1],
+                                       /* enforceSameUnit = */ false);
         }
         if (axisCount == 3) {
+            if (axisList[0]->unit() != axisList[1]->unit() ||
+                axisList[0]->unit() != axisList[2]->unit()) {
+                emitRecoverableWarning(
+                    "All axis of a CartesianCS must have the same unit");
+            }
             return CartesianCS::create(csMap, axisList[0], axisList[1],
-                                       axisList[2]);
+                                       axisList[2],
+                                       /* enforceSameUnit = */ false);
         }
         throw ParsingException("Expected 2 or 3 axis");
     }
@@ -7717,11 +7755,18 @@ static BaseObjectNNPtr createFromUserInput(const std::string &text,
     if (!text.empty() && text[0] == '{') {
         json j;
         try {
-            j = json::parse(text);
+            j = json::parse(text, [](int depth, json::parse_event_t, json &) {
+                if (depth >= 128)
+                    throw ParsingException("Too deep nesting in JSON content");
+                return true;
+            });
         } catch (const std::exception &e) {
             throw ParsingException(e.what());
         }
-        return JSONParser().attachDatabaseContext(dbContext).create(j);
+        return JSONParser()
+            .attachContext(ctx)
+            .attachDatabaseContext(dbContext)
+            .create(j);
     }
 
     if (!ci_starts_with(text, "step proj=") &&
@@ -7773,7 +7818,9 @@ static BaseObjectNNPtr createFromUserInput(const std::string &text,
         return importFromWMSAUTO(text);
     }
 
-    auto tokens = split(text, ':');
+    std::vector<std::string> tokens;
+    if (text.find(' ') == std::string::npos)
+        tokens = split(text, ':');
     if (tokens.size() == 2) {
         if (!dbContext) {
             throw ParsingException("no database context specified");
@@ -9448,7 +9495,6 @@ const std::string &PROJStringFormatter::toString() const {
             }
 
             if (curStep.name == "helmert" && prevStep.name == "helmert" &&
-                !curStep.inverted && !prevStep.inverted &&
                 curStepParamCount == 3 &&
                 curStepParamCount == prevStepParamCount) {
                 std::map<std::string, double> leftParamsMap;
@@ -9473,12 +9519,18 @@ const std::string &PROJStringFormatter::toString() const {
                     rightParamsMap.find(y) != rightParamsMap.end() &&
                     rightParamsMap.find(z) != rightParamsMap.end()) {
 
-                    const double xSum = leftParamsMap[x] + rightParamsMap[x];
-                    const double ySum = leftParamsMap[y] + rightParamsMap[y];
-                    const double zSum = leftParamsMap[z] + rightParamsMap[z];
+                    const double signLeft = prevStep.inverted ? -1 : 1;
+                    const double signRight = curStep.inverted ? -1 : 1;
+                    const double xSum = signLeft * leftParamsMap[x] +
+                                        signRight * rightParamsMap[x];
+                    const double ySum = signLeft * leftParamsMap[y] +
+                                        signRight * rightParamsMap[y];
+                    const double zSum = signLeft * leftParamsMap[z] +
+                                        signRight * rightParamsMap[z];
                     if (xSum == 0.0 && ySum == 0.0 && zSum == 0.0) {
                         deletePrevAndCurIter();
                     } else {
+                        prevStep.inverted = false;
                         prevStep.paramValues[0] =
                             Step::KeyValue("x", internal::toString(xSum));
                         prevStep.paramValues[1] =
@@ -9495,7 +9547,7 @@ const std::string &PROJStringFormatter::toString() const {
 
             // Helmert followed by its inverse is a no-op
             if (curStep.name == "helmert" && prevStep.name == "helmert" &&
-                !curStep.inverted && !prevStep.inverted &&
+                (curStep.inverted == prevStep.inverted) &&
                 curStepParamCount == prevStepParamCount) {
                 std::set<std::string> leftParamsSet;
                 std::set<std::string> rightParamsSet;
@@ -12266,7 +12318,9 @@ PROJStringParser::Private::buildProjectedCRS(int iStep,
             }
             if (param.value.empty()) {
                 methodName += " " + param.key;
-            } else if (isalpha(param.value[0])) {
+            } else if (isalpha(param.value[0]) || param.key == "gores") {
+                // The value of gores can be a string or a number.
+                // See interrupted.cpp for more info.
                 methodName += " " + param.key + "=" + param.value;
             } else {
                 parameters.push_back(OperationParameter::create(
@@ -12284,7 +12338,6 @@ PROJStringParser::Private::buildProjectedCRS(int iStep,
                                "q,"                         // urm5
                                "path,lsat,"                 // lsat
                                "W,M,"                       // hammer
-                               "aperture,resolution,"       // isea
                                )) {
                     double value = getNumericValue(param.value, &hasError);
                     values.push_back(ParameterValue::create(
@@ -12328,9 +12381,11 @@ PROJStringParser::Private::buildProjectedCRS(int iStep,
 
     auto csGeodCRS = geodCRS->coordinateSystem();
     auto cs = csGeodCRS->axisList().size() == 2
-                  ? CartesianCS::create(emptyPropertyMap, axis[0], axis[1])
+                  ? CartesianCS::create(emptyPropertyMap, axis[0], axis[1],
+                                        /* enforceSameUnit = */ false)
                   : CartesianCS::create(emptyPropertyMap, axis[0], axis[1],
-                                        csGeodCRS->axisList()[2]);
+                                        csGeodCRS->axisList()[2],
+                                        /* enforceSameUnit = */ false);
     if (isTopocentricStep(step.name)) {
         cs = CartesianCS::create(
             emptyPropertyMap,
@@ -12496,7 +12551,8 @@ PROJStringParser::createFromPROJString(const std::string &projString) {
             std::string initname(stepName);
             initname.resize(initname.find(':'));
             int file_found =
-                pj_find_file(ctx, initname.c_str(), unused, sizeof(unused));
+                pj_find_file(ctx, initname.c_str(), unused, sizeof(unused),
+                             /* disable_network = */ true);
 
             if (!file_found) {
                 auto obj = createFromUserInput(stepName, d->dbContext_, true);

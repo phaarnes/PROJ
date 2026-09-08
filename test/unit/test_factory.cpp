@@ -317,6 +317,7 @@ TEST(factory, AuthorityFactory_createVerticalDatum_with_anchor_epoch) {
                 1e-6);
 }
 
+#ifdef no_more_dynamic_vertical_datum
 // ---------------------------------------------------------------------------
 
 TEST(factory, AuthorityFactory_createDynamicVerticalDatum) {
@@ -326,6 +327,7 @@ TEST(factory, AuthorityFactory_createDynamicVerticalDatum) {
     ASSERT_TRUE(dvrf != nullptr);
     EXPECT_EQ(dvrf->frameReferenceEpoch().value(), 2000.0);
 }
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -1442,8 +1444,8 @@ TEST(factory, AuthorityFactory_build_all_concatenated) {
         AuthorityFactory::ObjectType::CONCATENATED_OPERATION, false);
     EXPECT_LT(setConcatenatedNoDeprecated.size(), setConcatenated.size());
     for (const auto &code : setConcatenated) {
-        if (in(code, {"8422", "8481", "8482", "8565", "8566", "8572", "9731",
-                      "11206"})) {
+        if (in(code, {"8422", "8481", "8482", "8565", "8566", "8572", "11005",
+                      "11398", "11206"})) {
             EXPECT_THROW(factory->createCoordinateOperation(code, false),
                          FactoryException)
                 << code;
@@ -2353,10 +2355,11 @@ TEST(factory, AuthorityFactory_createFromCoordinateReferenceSystemCodes) {
     {
         auto list =
             factory->createFromCoordinateReferenceSystemCodes("4179", "4258");
-        ASSERT_EQ(list.size(), 2U);
+        ASSERT_EQ(list.size(), 3U);
         // Romania has a larger area than Poland (given our approx formula)
-        EXPECT_EQ(list[0]->getEPSGCode(), 15993); // Romania - 10m
-        EXPECT_EQ(list[1]->getEPSGCode(), 1644);  // Poland - 1m
+        EXPECT_EQ(list[0]->getEPSGCode(), 15994); // Romania - 3m
+        EXPECT_EQ(list[1]->getEPSGCode(), 15993); // Romania - 10m
+        EXPECT_EQ(list[2]->getEPSGCode(), 1644);  // Poland - 1m
     }
     {
         // Test removal of superseded transform
@@ -2364,7 +2367,7 @@ TEST(factory, AuthorityFactory_createFromCoordinateReferenceSystemCodes) {
             "EPSG", "4179", "EPSG", "4258", false, false, false, true);
         ASSERT_EQ(list.size(), 2U);
         // Romania has a larger area than Poland (given our approx formula)
-        EXPECT_EQ(list[0]->getEPSGCode(), 15993); // Romania - 10m
+        EXPECT_EQ(list[0]->getEPSGCode(), 15994); // Romania - 3m
         EXPECT_EQ(list[1]->getEPSGCode(), 1644);  // Poland - 1m
     }
 }
@@ -3286,6 +3289,236 @@ TEST_F(FactoryWithTmpDatabase, custom_projected_crs) {
 
 // ---------------------------------------------------------------------------
 
+TEST_F(FactoryWithTmpDatabase, custom_derived_projected_crs) {
+    createStructure();
+    populateWithFakeEPSG();
+
+    // Register a conversion for the deriving step (affine identity, no params)
+    // conversion_table: auth_name,code,name,description,method_auth_name,
+    //   method_code, then 7x(param_auth_name,param_code,param_value,
+    //   param_uom_auth_name,param_uom_code), deprecated = 42 cols total
+    ASSERT_TRUE(
+        execute("INSERT INTO conversion_table VALUES('TEST_NS','DERIVING_CONV',"
+                "'Deriving conversion',NULL,'EPSG','9807',"
+                "NULL,NULL,NULL,NULL,NULL," // param1
+                "NULL,NULL,NULL,NULL,NULL," // param2
+                "NULL,NULL,NULL,NULL,NULL," // param3
+                "NULL,NULL,NULL,NULL,NULL," // param4
+                "NULL,NULL,NULL,NULL,NULL," // param5
+                "NULL,NULL,NULL,NULL,NULL," // param6
+                "NULL,NULL,NULL,NULL,NULL," // param7
+                "0);"))
+        << last_error();
+    ASSERT_TRUE(execute("INSERT INTO usage VALUES('TEST_NS',"
+                        "'deriving_conv_usage','conversion',"
+                        "'TEST_NS','DERIVING_CONV',"
+                        "'EPSG','1262','EPSG','1024');"))
+        << last_error();
+
+    // Relational registration of a derived_projected_crs
+    ASSERT_TRUE(execute("INSERT INTO derived_projected_crs "
+                        "VALUES('TEST_NS','DERIVED1',"
+                        "'my derived projected crs',NULL,"
+                        "'EPSG','4400',"  // Cartesian 2D CS
+                        "'EPSG','32631'," // base: UTM zone 31N
+                        "'TEST_NS','DERIVING_CONV',"
+                        "NULL,0);"))
+        << last_error();
+    ASSERT_TRUE(execute("INSERT INTO usage VALUES('TEST_NS',"
+                        "'derived1_usage','derived_projected_crs',"
+                        "'TEST_NS','DERIVED1',"
+                        "'EPSG','1262','EPSG','1024');"))
+        << last_error();
+
+    // text_definition registration of a derived_projected_crs
+    ASSERT_TRUE(execute(
+        "INSERT INTO derived_projected_crs "
+        "VALUES('TEST_NS','DERIVED2',"
+        "'my derived projected crs text_def',NULL,"
+        "NULL,NULL,NULL,NULL,NULL,NULL,"
+        "'"
+        "DERIVEDPROJCRS[\"my derived projected crs text_def\","
+        "  BASEPROJCRS[\"WGS 84 / UTM zone 31N\","
+        "    BASEGEOGCRS[\"WGS 84\","
+        "      DATUM[\"World Geodetic System 1984\","
+        "        ELLIPSOID[\"WGS 84\",6378137,298.257223563,"
+        "          LENGTHUNIT[\"metre\",1]]],"
+        "      "
+        "PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      CS[ellipsoidal,2],"
+        "        AXIS[\"latitude\",north],AXIS[\"longitude\",east],"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "    CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\"],"
+        "      PARAMETER[\"Latitude of natural origin\",0,"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      PARAMETER[\"Longitude of natural origin\",3,"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      PARAMETER[\"Scale factor at natural origin\",0.9996,"
+        "        SCALEUNIT[\"unity\",1]],"
+        "      PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],"
+        "      PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]]],"
+        "  DERIVINGCONVERSION[\"Deriving conversion\","
+        "    METHOD[\"Transverse Mercator\"]],"
+        "  CS[Cartesian,2],"
+        "    AXIS[\"easting (E)\",east,LENGTHUNIT[\"metre\",1]],"
+        "    AXIS[\"northing (N)\",north,LENGTHUNIT[\"metre\",1]]]"
+        "',0);"))
+        << last_error();
+
+    // Registering a PROJCRS WKT in derived_projected_crs should fail clearly
+    ASSERT_TRUE(execute("INSERT INTO derived_projected_crs "
+                        "VALUES('TEST_NS','DERIVED_WRONG',"
+                        "'wrong',NULL,"
+                        "NULL,NULL,NULL,NULL,NULL,NULL,"
+                        "'+proj=utm +zone=31',0);"))
+        << last_error();
+
+    // Registering a DERIVEDPROJCRS WKT in projected_crs should give a
+    // directed error
+    ASSERT_TRUE(execute(
+        "INSERT INTO projected_crs "
+        "VALUES('TEST_NS','PROJ_WITH_DERIVED_WKT',"
+        "'proj with derived wkt',NULL,"
+        "NULL,NULL,NULL,NULL,NULL,NULL,"
+        "'"
+        "DERIVEDPROJCRS[\"test\","
+        "  BASEPROJCRS[\"WGS 84 / UTM zone 31N\","
+        "    BASEGEOGCRS[\"WGS 84\","
+        "      DATUM[\"World Geodetic System 1984\","
+        "        ELLIPSOID[\"WGS 84\",6378137,298.257223563,"
+        "          LENGTHUNIT[\"metre\",1]]],"
+        "      "
+        "PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      CS[ellipsoidal,2],"
+        "        AXIS[\"latitude\",north],AXIS[\"longitude\",east],"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "    CONVERSION[\"UTM zone 31N\",METHOD[\"Transverse Mercator\"],"
+        "      PARAMETER[\"Latitude of natural origin\",0,"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      PARAMETER[\"Longitude of natural origin\",3,"
+        "        ANGLEUNIT[\"degree\",0.0174532925199433]],"
+        "      PARAMETER[\"Scale factor at natural origin\",0.9996,"
+        "        SCALEUNIT[\"unity\",1]],"
+        "      PARAMETER[\"False easting\",500000,LENGTHUNIT[\"metre\",1]],"
+        "      PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1]]]],"
+        "  DERIVINGCONVERSION[\"test\",METHOD[\"Transverse Mercator\"]],"
+        "  CS[Cartesian,2],"
+        "    AXIS[\"easting (E)\",east,LENGTHUNIT[\"metre\",1]],"
+        "    AXIS[\"northing (N)\",north,LENGTHUNIT[\"metre\",1]]]"
+        "',0);"))
+        << last_error();
+
+    // Trigger: duplicate (auth_name, code) already in crs_view
+    EXPECT_FALSE(execute("INSERT INTO derived_projected_crs "
+                         "VALUES('EPSG','32631','duplicate',NULL,"
+                         "'EPSG','4400','EPSG','32631',"
+                         "'TEST_NS','DERIVING_CONV',NULL,0);"))
+        << "should reject: code already exists in crs_view as projected_crs";
+
+    // Trigger: base_crs deprecated
+    ASSERT_TRUE(execute("UPDATE projected_crs SET deprecated=1 "
+                        "WHERE auth_name='EPSG' AND code='32631';"))
+        << last_error();
+    EXPECT_FALSE(execute("INSERT INTO derived_projected_crs "
+                         "VALUES('TEST_NS','DERIVED_DEP_BASE','dep base',NULL,"
+                         "'EPSG','4400','EPSG','32631',"
+                         "'TEST_NS','DERIVING_CONV',NULL,0);"))
+        << "should reject: base_crs is deprecated";
+    ASSERT_TRUE(execute("UPDATE projected_crs SET deprecated=0 "
+                        "WHERE auth_name='EPSG' AND code='32631';"))
+        << last_error();
+
+    // Trigger: conversion missing when text_definition is NULL
+    EXPECT_FALSE(execute("INSERT INTO derived_projected_crs "
+                         "VALUES('TEST_NS','DERIVED_NO_CONV','no conv',NULL,"
+                         "'EPSG','4400','EPSG','32631',"
+                         "NULL,NULL,NULL,0);"))
+        << "should reject: no conversion and no text_definition";
+
+    // Trigger: coordinate_system type not in permitted set (ellipsoidal)
+    EXPECT_FALSE(
+        execute("INSERT INTO derived_projected_crs "
+                "VALUES('TEST_NS','DERIVED_ELLIPS_CS','ellips cs',NULL,"
+                "'EPSG','6422','EPSG','32631',"
+                "'TEST_NS','DERIVING_CONV',NULL,0);"))
+        << "should reject: CS type 'ellipsoidal' not in permitted set";
+
+    // Trigger: coordinate_system type not in permitted set (vertical, dim=1)
+    EXPECT_FALSE(execute("INSERT INTO derived_projected_crs "
+                         "VALUES('TEST_NS','DERIVED_VERT_CS','vert cs',NULL,"
+                         "'EPSG','6499','EPSG','32631',"
+                         "'TEST_NS','DERIVING_CONV',NULL,0);"))
+        << "should reject: CS type 'vertical' not in permitted set";
+
+    auto factory =
+        AuthorityFactory::create(DatabaseContext::create(m_ctxt), "TEST_NS");
+
+    // Relational lookup
+    {
+        auto crs = factory->createDerivedProjectedCRS("DERIVED1");
+        EXPECT_EQ(crs->nameStr(), "my derived projected crs");
+        EXPECT_EQ(crs->identifiers().size(), 1U);
+        EXPECT_TRUE(nn_dynamic_pointer_cast<ProjectedCRS>(crs->baseCRS()) !=
+                    nullptr);
+        EXPECT_EQ(crs->baseCRS()->nameStr(), "WGS 84 / UTM zone 31N");
+    }
+
+    // createCoordinateReferenceSystem dispatches correctly
+    {
+        auto crs = factory->createCoordinateReferenceSystem("DERIVED1");
+        EXPECT_TRUE(nn_dynamic_pointer_cast<DerivedProjectedCRS>(crs) !=
+                    nullptr);
+    }
+
+    // text_definition lookup
+    {
+        auto crs = factory->createDerivedProjectedCRS("DERIVED2");
+        EXPECT_EQ(crs->nameStr(), "my derived projected crs text_def");
+        EXPECT_TRUE(nn_dynamic_pointer_cast<ProjectedCRS>(crs->baseCRS()) !=
+                    nullptr);
+    }
+
+    // text_definition that is not a DERIVEDPROJCRS gives a clear error
+    EXPECT_THROW(factory->createDerivedProjectedCRS("DERIVED_WRONG"),
+                 FactoryException);
+
+    // DERIVEDPROJCRS WKT in projected_crs table throws
+    EXPECT_THROW(factory->createProjectedCRS("PROJ_WITH_DERIVED_WKT"),
+                 FactoryException);
+
+    // getAuthorityCodes
+    {
+        auto codes = factory->getAuthorityCodes(
+            AuthorityFactory::ObjectType::DERIVED_PROJECTED_CRS);
+        EXPECT_EQ(codes.size(), 3U);
+        EXPECT_TRUE(codes.count("DERIVED1") == 1);
+    }
+
+    // getDescriptionText
+    {
+        EXPECT_EQ(factory->getDescriptionText("DERIVED1"),
+                  "my derived projected crs");
+    }
+
+    // getCRSInfoList
+    {
+        auto list = factory->getCRSInfoList();
+        bool found = false;
+        for (const auto &info : list) {
+            if (info.authName == "TEST_NS" && info.code == "DERIVED1") {
+                found = true;
+                EXPECT_EQ(info.name, "my derived projected crs");
+                EXPECT_EQ(info.type,
+                          AuthorityFactory::ObjectType::DERIVED_PROJECTED_CRS);
+                break;
+            }
+        }
+        EXPECT_TRUE(found) << "DERIVED1 not found in getCRSInfoList()";
+    }
+}
+
+// ---------------------------------------------------------------------------
+
 TEST_F(FactoryWithTmpDatabase, CoordinateMetadata) {
     createStructure();
     populateWithFakeEPSG();
@@ -3856,6 +4089,7 @@ TEST(factory, createObjectsFromName) {
                   .size(),
               1U);
 
+#ifdef no_more_dynamic_vertical_datum
     // Dynamic Vertical datum
     EXPECT_EQ(
         factoryEPSG
@@ -3865,6 +4099,7 @@ TEST(factory, createObjectsFromName) {
                                     false, 2)
             .size(),
         1U);
+#endif
 
     {
         auto res = factory->createObjectsFromName(

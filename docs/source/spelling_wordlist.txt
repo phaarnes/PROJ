@@ -270,6 +270,7 @@ doxygennamespace
 doxygenpage
 doxygenstruct
 doxygentypedef
+dsea
 duplicateBreak
 d'utilisation
 dx
@@ -404,6 +405,7 @@ gg
 gie
 gimbal
 Gitter
+globemaking
 gn
 gnom
 gnomonic
@@ -524,6 +526,7 @@ Isostatic
 isw
 iteratively
 ITRF
+ivea
 Jagiellonian
 jakarta
 jitter
@@ -569,6 +572,7 @@ lcc
 lcca
 ld
 leac
+Leeuwen
 len
 Levallois
 levelling
@@ -668,6 +672,7 @@ naptrans
 natearth
 natively
 nd
+neighbours
 nell
 netcdf
 netCDF
@@ -743,6 +748,7 @@ ossfuzz
 Ostend
 ou
 packageName
+Pallero
 param
 parameterising
 parametres
@@ -768,6 +774,7 @@ poder
 Poder
 polewards
 Polyconic
+Polyhedra
 polynormal
 pre
 Pre
@@ -906,6 +913,7 @@ stereographic
 Stereographic
 stockholm
 Storebælt
+Strebe
 Strecha
 strided
 struct
@@ -941,6 +949,7 @@ tinshift
 Tissot
 tmerc
 TMerc
+tmerczoned
 Tobler
 tobmerc
 toFullyQualifiedName
@@ -957,6 +966,7 @@ tradeoff
 tran
 triangulations
 triaxial
+tsea
 Trimetric
 Tripel
 Triptychial
@@ -1017,6 +1027,7 @@ vto
 vunits
 Warmerdam
 Wdocumentation
+webassembly
 webmerc
 Webmercator
 webpage

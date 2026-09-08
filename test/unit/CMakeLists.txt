@@ -4,14 +4,13 @@
 set(MIN_GTest_VERSION "1.8.1")
 
 if(NOT CMAKE_REQUIRED_QUIET)
-  # CMake 3.17+ use CHECK_START/CHECK_PASS/CHECK_FAIL
-  message(STATUS "Looking for GTest")
+  message(CHECK_START "Looking for GTest")
 endif()
 find_package(GTest QUIET)
 set(USE_EXTERNAL_GTEST_DEFAULT OFF)
 if(GTest_FOUND)
   if(NOT CMAKE_REQUIRED_QUIET)
-    message(STATUS "Looking for GTest - found (${GTest_VERSION})")
+    message(CHECK_PASS "found (${GTest_VERSION})")
   endif()
   if(GTest_VERSION VERSION_LESS MIN_GTest_VERSION)
     message(WARNING "External GTest version is too old")
@@ -20,7 +19,7 @@ if(GTest_FOUND)
   endif()
 else()
   if(NOT CMAKE_REQUIRED_QUIET)
-    message(STATUS "Looking for GTest - not found")
+    message(CHECK_FAIL "not found")
   endif()
 endif()
 
@@ -38,15 +37,6 @@ if(USE_EXTERNAL_GTEST)
     return()
   endif()
   message(STATUS "Using external GTest")
-
-  # CMake < 3.20.0 uses GTest::GTest
-  # CMake >= 3.20 uses GTest::gtest, and deprecates GTest::GTest
-  # so for older CMake, create an alias from GTest::GTest to GTest::gtest
-  if(NOT TARGET GTest::gtest)
-    add_library(GTest::gtest INTERFACE IMPORTED)
-    set_target_properties(GTest::gtest PROPERTIES
-                          INTERFACE_LINK_LIBRARIES "GTest::GTest")
-  endif()
 
 elseif(HAS_NETWORK)
 
@@ -229,6 +219,11 @@ endif()
 add_executable(test_defmodel
   main.cpp
   test_defmodel.cpp)
+if(NLOHMANN_JSON STREQUAL "external")
+  target_compile_definitions(test_defmodel PRIVATE EXTERNAL_NLOHMANN_JSON)
+  target_link_libraries(test_defmodel
+    PRIVATE $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>)
+endif()
 target_link_libraries(test_defmodel
   PRIVATE GTest::gtest
   PRIVATE ${PROJ_LIBRARIES})
@@ -239,6 +234,11 @@ set_property(TEST test_defmodel
 add_executable(test_tinshift
   main.cpp
   test_tinshift.cpp)
+if(NLOHMANN_JSON STREQUAL "external")
+  target_compile_definitions(test_tinshift PRIVATE EXTERNAL_NLOHMANN_JSON)
+  target_link_libraries(test_tinshift
+    PRIVATE $<BUILD_INTERFACE:nlohmann_json::nlohmann_json>)
+endif()
 target_link_libraries(test_tinshift
   PRIVATE GTest::gtest
   PRIVATE ${PROJ_LIBRARIES})
@@ -254,6 +254,28 @@ target_link_libraries(test_misc
   PRIVATE ${PROJ_LIBRARIES})
 add_test(NAME test_misc COMMAND test_misc)
 set_property(TEST test_misc
+  PROPERTY ENVIRONMENT ${PROJ_TEST_ENVIRONMENT})
+
+add_executable(test_tmerczoned
+  main.cpp
+  test_tmerczoned.cpp)
+target_link_libraries(test_tmerczoned
+  PRIVATE GTest::gtest
+  PRIVATE ${PROJ_LIBRARIES})
+add_test(NAME test_tmerczoned COMMAND test_tmerczoned)
+set_property(TEST test_tmerczoned
+  PROPERTY ENVIRONMENT ${PROJ_TEST_ENVIRONMENT})
+
+add_executable(test_polyhedral
+  main.cpp
+  test_polyhedral.cpp)
+target_link_libraries(test_polyhedral
+  PRIVATE GTest::gtest
+  PRIVATE ${PROJ_LIBRARIES})
+target_include_directories(test_polyhedral
+  PRIVATE ${PROJECT_SOURCE_DIR}/src/projections)
+add_test(NAME test_polyhedral COMMAND test_polyhedral)
+set_property(TEST test_polyhedral
   PROPERTY ENVIRONMENT ${PROJ_TEST_ENVIRONMENT})
 
 if (Threads_FOUND AND CMAKE_USE_PTHREADS_INIT AND NOT APPLE)

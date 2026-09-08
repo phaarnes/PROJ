@@ -35,7 +35,7 @@ set(SRC_LIBPROJ_PROJECTIONS
   projections/bipc.cpp
   projections/bonne.cpp
   projections/eqdc.cpp
-  projections/isea.cpp
+  projections/polyhedral.cpp
   projections/ccon.cpp
   projections/imw_p.cpp
   projections/krovak.cpp
@@ -60,6 +60,7 @@ set(SRC_LIBPROJ_PROJECTIONS
   projections/tcea.cpp
   projections/times.cpp
   projections/tmerc.cpp
+  projections/tmerczoned.cpp
   projections/tobmerc.cpp
   projections/airy.cpp
   projections/aitoff.cpp
@@ -134,6 +135,8 @@ set(SRC_LIBPROJ_PROJECTIONS
   projections/eqearth.cpp
   projections/col_urban.cpp
   projections/spilhaus.cpp
+  projections/hourglass.cpp
+  projections/interrupted.cpp
 )
 
 set(SRC_LIBPROJ_CONVERSIONS
@@ -159,6 +162,7 @@ set(SRC_LIBPROJ_TRANSFORMATIONS
   transformations/xyzgridshift.cpp
   transformations/defmodel.cpp
   transformations/tinshift.cpp
+  transformations/tinshift_gpkg.cpp
   transformations/vertoffset.cpp
 )
 
@@ -434,7 +438,7 @@ if (EMBED_RESOURCE_FILES)
   endif()
 endif()
 
-set(EMBED_RESOURCE_DIRECTORY "" CACHE PATH "Directory that contains .tif, .json or .pol files to embed into libproj")
+set(EMBED_RESOURCE_DIRECTORY "" CACHE PATH "Directory that contains .tif, .json, .gpkg or .pol files to embed into libproj")
 set(FILES_TO_EMBED)
 if (EMBED_RESOURCE_DIRECTORY)
     if (NOT EMBED_RESOURCE_FILES)
@@ -445,9 +449,13 @@ if (EMBED_RESOURCE_DIRECTORY)
         message(FATAL_ERROR "${EMBED_RESOURCE_DIRECTORY} is not a valid directory")
     endif()
 
-    file(GLOB FILES_TO_EMBED "${EMBED_RESOURCE_DIRECTORY}/*.tif" "${EMBED_RESOURCE_DIRECTORY}/*.json"  "${EMBED_RESOURCE_DIRECTORY}/*.pol")
+    file(GLOB FILES_TO_EMBED
+            "${EMBED_RESOURCE_DIRECTORY}/*.tif"
+            "${EMBED_RESOURCE_DIRECTORY}/*.json"
+            "${EMBED_RESOURCE_DIRECTORY}/*.gpkg"
+            "${EMBED_RESOURCE_DIRECTORY}/*.pol")
     if (NOT FILES_TO_EMBED)
-        message(FATAL_ERROR "No .tif, .json or .pol files found in ${EMBED_RESOURCE_DIRECTORY}")
+        message(FATAL_ERROR "No .tif, .json, .gpkg or .pol files found in ${EMBED_RESOURCE_DIRECTORY}")
     endif()
 endif()
 

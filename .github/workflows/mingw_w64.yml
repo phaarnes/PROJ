@@ -22,10 +22,10 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7.0.1
 
       - name: Cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         id: cache
         with:
           path: |
@@ -34,4 +34,4 @@ jobs:
           restore-keys: ${{ runner.os }}-cache-mingw_w64-
 
       - name: Build
-        run: docker run -e CI -e TRAVIS_OS_NAME=linux -e BUILD_NAME=mingw_w64 -e WORK_DIR="$PWD" -v $PWD:$PWD ubuntu:22.04 $PWD/.github/workflows/mingw_w64/start.sh
+        run: docker run -e PROJ_GITHUB_SHA=${{ github.sha }} -e CI -e TRAVIS_OS_NAME=linux -e BUILD_NAME=mingw_w64 -e WORK_DIR="$PWD" -v $PWD:$PWD ubuntu:22.04 $PWD/ci/mingw_w64/start.sh

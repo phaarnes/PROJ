@@ -102,6 +102,9 @@ VALUES
 ('chgeo2004_ETRS.agr','ch_swisstopo_chgeo2004_ETRS89_LHN95.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/ch_swisstopo_chgeo2004_ETRS89_LHN95.tif',1,1,NULL),
 ('chgeo2004_htrans_ETRS.agr','ch_swisstopo_chgeo2004_ETRS89_LN02.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/ch_swisstopo_chgeo2004_ETRS89_LN02.tif',1,1,NULL),
 
+-- co_igac - Instituto Geográfico Agustín Codazzi (IGAC)
+('QgeoidCOL2023.txt','co_igac_QGeoidCOL2023.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/co_igac_QGeoidCOL2023.tif',1,1,NULL),
+
 -- cz_cuzk - ČÚZK
 ('CR2005_GTX.gtx','cz_cuzk_CR-2005.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/cz_cuzk_CR-2005.tif',1,1,NULL),
 ('cz_cuzk_table_-y-x_3_v1710.tif','cz_cuzk_table_-y-x_3_v1710.tif',NULL,'GTiff','gridshift',0,NULL,'https://cdn.proj.org/cz_cuzk_table_-y-x_3_v1710.tif',1,1,NULL),
@@ -131,7 +134,7 @@ VALUES
 -- Denmark mainland
 ('dnn.gtx','dk_sdfe_dnn.tif','dnn.gtx','GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_sdfe_dnn.tif',1,1,NULL),
 --  Faroe islands height models
-('fvr09.gtx','dk_sdfe_fvr09.tif','fvr09.gtx','GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_sdfe_fvr09.tif',1,1,NULL),
+('fo_geoid2012a.gri','dk_sdfe_fvr09.tif','fvr09.gtx','GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_sdfe_fvr09.tif',1,1,NULL),
 -- Greenland height models
 ('gr2000g.gri','dk_sdfe_gvr2000.tif','gvr2000.gtx','GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_sdfe_gvr2000.tif',1,1,NULL),
 ('ggeoid16.gri','dk_sdfe_gvr2016.tif','gvr2016.gtx','GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_sdfe_gvr2016.tif',1,1,NULL),
@@ -161,6 +164,8 @@ VALUES
 -- Denmark
 ('dvr90_evrf2019.tif','dk_kds_dvr90_evrf2019.tif',NULL,'GTiff','vgridshift',0,NULL,'https://cdn.proj.org/dk_kds_dvr90_evrf2019.tif',1,1,NULL),
 ('dvr90_evrf2019_mean_tide.tif','dk_kds_dvr90_evrf2019_mean_tide.tif',NULL,'GTiff','vgridshift',0,NULL,'https://cdn.proj.org/dk_kds_dvr90_evrf2019_mean_tide.tif',1,1,NULL),
+('gllat_2025.tif','dk_kds_gllat_2025.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_kds_gllat_2025.tif',1,1,NULL),
+('glmsl_2025.tif','dk_kds_glmsl_2025.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/dk_kds_glmsl_2025.tif',1,1,NULL),
 
 -- es_cat_icgc - Institut Cartogràfic i Geològic de Catalunya (ICGC)
 ('100800401.gsb','es_cat_icgc_100800401.tif','100800401.gsb','GTiff','hgridshift',0,NULL,'https://cdn.proj.org/es_cat_icgc_100800401.tif',1,1,NULL),
@@ -183,6 +188,9 @@ VALUES
 ('fi_nls_n43_n60.json','fi_nls_n43_n60.json',NULL,'JSON','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_n43_n60.json',1,1,NULL),
 ('fi_nls_n60_n2000.json','fi_nls_n60_n2000.json',NULL,'JSON','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_n60_n2000.json',1,1,NULL),
 ('fi_nls_ykj_etrs35fin.json','fi_nls_ykj_etrs35fin.json',NULL,'JSON','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_ykj_etrs35fin.json',1,1,NULL),
+('NOT-YET-IN-GRID-TRANSFORMATION-fi_nls_n43_n60.gpkg','fi_nls_n43_n60.gpkg',NULL,'GPKG','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_n43_n60.gpkg',1,1,NULL),
+('NOT-YET-IN-GRID-TRANSFORMATION-fi_nls_n60_n2000.gpkg','fi_nls_n60_n2000.gpkg',NULL,'GPKG','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_n60_n2000.gpkg',1,1,NULL),
+('NOT-YET-IN-GRID-TRANSFORMATION-fi_nls_ykj_etrs35fin.gpkg','fi_nls_ykj_etrs35fin.gpkg',NULL,'GPKG','tinshift',0,NULL,'https://cdn.proj.org/fi_nls_ykj_etrs35fin.gpkg',1,1,NULL),
 
 -- fr_ign - IGN France
 ('rgf93_ntf.gsb','fr_ign_ntf_r93.tif','ntf_r93.gsb','GTiff','hgridshift',1,NULL,'https://cdn.proj.org/fr_ign_ntf_r93.tif',1,1,NULL),
@@ -253,7 +261,7 @@ VALUES
 ('NOT-YET-IN-GRID-TRANSFORMATION-is_lmi_ISN_vel_beta.tif','is_lmi_ISN_vel_beta.tif',NULL,'GTiff','velocity_grid',0,NULL,'https://cdn.proj.org/is_lmi_ISN_vel_beta.tif',1,1,NULL),
 
 -- jp_gsi - Geospatial Information Authority of Japan
-('jp_gsi_gsigeo2011.tif','jp_gsi_gsigeo2011.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/jp_gsi_gsigeo2011.tif',1,1,NULL),
+('GSIGEO2011.isg','jp_gsi_gsigeo2011.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/jp_gsi_gsigeo2011.tif',1,1,NULL),
 ('JPGEO2024.isg','jp_gsi_jpgeo2024.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/jp_gsi_jpgeo2024.tif',1,1,NULL),
 
 -- lv_lgia - Latvian Geospatial Information Agency
@@ -285,6 +293,7 @@ VALUES
 -- no_kv - Kartverket
 -- Norwegian grids
 ('HREF2018B_NN2000_EUREF89.bin','no_kv_HREF2018B_NN2000_EUREF89.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/no_kv_HREF2018B_NN2000_EUREF89.tif',1,1,NULL),
+('HREF2025A_NN2000_EUREF89.bin','no_kv_HREF2025A_NN2000_EUREF89.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/no_kv_HREF2025A_NN2000_EUREF89.tif',1,1,NULL),
 ('href2008a.bin','no_kv_href2008a.tif',NULL,'GTiff','geoid_like',0,NULL,'https://cdn.proj.org/no_kv_href2008a.tif',1,1,NULL),
 ('no_kv_NKGETRF14_EPSG7922_2000.tif','no_kv_NKGETRF14_EPSG7922_2000.tif',NULL,'GTiff','geocentricoffset',0,NULL,'https://cdn.proj.org/no_kv_NKGETRF14_EPSG7922_2000.tif',1,1,NULL),
 ('ChartDatum_above_Ellipsoid_EUREF89_v2021a.bin','no_kv_CD_above_Ell_ETRS89_v2021a.tif',NULL,'GTiff','vgridshift',0,NULL,'https://cdn.proj.org/no_kv_CD_above_Ell_ETRS89_v2021a.tif',1,1,NULL),

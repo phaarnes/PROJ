@@ -451,7 +451,7 @@ tests:
     DERIVED_FROM(EPSG):1313, NAD27 to NAD83 (4), 1.5 m, Canada - onshore - Alberta; British Columbia; Manitoba; New Brunswick; Newfoundland and Labrador; Northwest Territories; Nova Scotia; Nunavut; Ontario; Prince Edward Island; Quebec; Saskatchewan; Yukon; offshore east coast west of 44°W and north of 40°N.
     DERIVED_FROM(EPSG):1312, NAD27 to NAD83 (3), 2.0 m, Canada - onshore - Alberta; British Columbia; Manitoba; New Brunswick; Newfoundland and Labrador; Northwest Territories; Nova Scotia; Nunavut; Ontario; Prince Edward Island; Quebec; Saskatchewan; Yukon; offshore east coast west of 44°W and north of 40°N.
     DERIVED_FROM(EPSG):1241, NAD27 to NAD83 (1), 0.15 m, United States (USA) - CONUS including EEZ - onshore and offshore - Alabama; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Gulf of Mexico (GoM) OCS.
-    DERIVED_FROM(EPSG):8555, NAD27 to NAD83 (7), 0.15 m, United States (USA) - CONUS onshore - Alabama; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Gulf of Mexico offshore continental shelf (GoM OCS).
+    DERIVED_FROM(EPSG):8555, NAD27 to NAD83 (7), 0.15 m, United States (USA) - conterminous (contiguous) lower 48 states (CONUS) onshore, Gulf of Mexico offshore continental shelf (GoM OCS).
     DERIVED_FROM(EPSG):1243, NAD27 to NAD83 (2), 0.5 m, United States (USA) - Alaska including EEZ.
     DERIVED_FROM(EPSG):8549, NAD27 to NAD83 (8), 0.5 m, United States (USA) - Alaska.
     DERIVED_FROM(EPSG):1573, NAD27 to NAD83 (6), 1.5 m, Canada - Quebec.
@@ -628,7 +628,7 @@ tests:
     -------------------------------------
     Operation No. 4:
 
-    DERIVED_FROM(EPSG):8555, NAD27 to NAD83 (7), 0.15 m, United States (USA) - CONUS onshore - Alabama; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Gulf of Mexico offshore continental shelf (GoM OCS).
+    DERIVED_FROM(EPSG):8555, NAD27 to NAD83 (7), 0.15 m, United States (USA) - conterminous (contiguous) lower 48 states (CONUS) onshore, Gulf of Mexico offshore continental shelf (GoM OCS).
 
     PROJ string:
     +proj=pipeline
@@ -675,7 +675,7 @@ tests:
         OPERATIONACCURACY[0.15],
         USAGE[
             SCOPE["Geodesy."],
-            AREA["United States (USA) - CONUS onshore - Alabama; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming. US Gulf of Mexico offshore continental shelf (GoM OCS)."],
+            AREA["United States (USA) - conterminous (contiguous) lower 48 states (CONUS) onshore, Gulf of Mexico offshore continental shelf (GoM OCS)."],
             BBOX[23.82,-124.79,49.38,-66.91]],
         ID["DERIVED_FROM(EPSG)",8555],
         REMARK["NADCON5 method expects longitudes 0-360°; source and target CRS longitudes in range ±180°. Accuracy at 67% confidence level is 0.15m onshore, 1m nearshore and undetermined farther offshore. For application in Gulf of Mexico refer to IOGP report 373-26."]]
@@ -1242,7 +1242,7 @@ tests:
     -------------------------------------
     Operation No. 1:
 
-    unknown id, Inverse of NAD83(2011) to NAVD88 height (3), 0.015 m, United States (USA) - CONUS onshore - Alabama; Arizona; Arkansas; California; Colorado; Connecticut; Delaware; Florida; Georgia; Idaho; Illinois; Indiana; Iowa; Kansas; Kentucky; Louisiana; Maine; Maryland; Massachusetts; Michigan; Minnesota; Mississippi; Missouri; Montana; Nebraska; Nevada; New Hampshire; New Jersey; New Mexico; New York; North Carolina; North Dakota; Ohio; Oklahoma; Oregon; Pennsylvania; Rhode Island; South Carolina; South Dakota; Tennessee; Texas; Utah; Vermont; Virginia; Washington; West Virginia; Wisconsin; Wyoming.
+    unknown id, Inverse of NAD83(2011) to NAVD88 height (3), 0.015 m, United States (USA) - conterminous (contiguous) lower 48 states (CONUS) - onshore.
 
     PROJ string:
     +proj=pipeline
@@ -1718,7 +1718,8 @@ tests:
 - comment: Quick check of NKG transformations
   args: -s EPSG:7789 -t EPSG:4936 --area  EPSG:1080 --summary --hide-ballpark
   out: |
-    Candidate operations found: 1
+    Candidate operations found: 2
+    EPSG:10894, ITRF2014 to ETRS89-DNK (1), 0.006 m, Denmark - onshore and offshore., time-dependent operation
     NKG:ITRF2014_TO_DK, ITRF2014 to ETRS89(DK), 0.01 m, Denmark - onshore and offshore., time-dependent operation
 - args: --dump-db-structure
   head: 5
@@ -1732,7 +1733,7 @@ tests:
   tail: 4
   out: |
     INSERT INTO metadata VALUES('DATABASE.LAYOUT.VERSION.MAJOR',1);
-    INSERT INTO metadata VALUES('DATABASE.LAYOUT.VERSION.MINOR',6);
+    INSERT INTO metadata VALUES('DATABASE.LAYOUT.VERSION.MINOR',7);
     INSERT INTO geodetic_crs VALUES('HOBU','XXXX','WGS 84','','geographic 2D','EPSG','6422','EPSG','6326',NULL,0);
     INSERT INTO usage VALUES('HOBU','USAGE_GEODETIC_CRS_XXXX','geodetic_crs','HOBU','XXXX','EPSG','1262','EPSG','1183');
 - args: -s EPSG:23030 -t EPSG:25830 --bbox -6,40,-5,41 --grid-check known_available --hide-ballpark --summary
@@ -1778,19 +1779,19 @@ tests:
   out: |
     EPSG:4258 "ETRS89"
     EPSG:9398 "Tenerife height"
-    EPSG:9505 "ETRS89-ESP [REGENTE] + Alicante height"
+    EPSG:9505 "ETRS89 + Alicante height"
 - args: --list-crs --area Spain --spatial-test contains
   grep: EPSG:9505|EPSG:9398|EPSG:4258|EPSG:5703
   sort:
   out: |
     EPSG:9398 "Tenerife height"
-    EPSG:9505 "ETRS89-ESP [REGENTE] + Alicante height"
+    EPSG:9505 "ETRS89 + Alicante height"
 - args: --list-crs --area Spain
   grep: EPSG:9505|EPSG:9398|EPSG:4258|EPSG:5703
   sort:
   out: |
     EPSG:9398 "Tenerife height"
-    EPSG:9505 "ETRS89-ESP [REGENTE] + Alicante height"
+    EPSG:9505 "ETRS89 + Alicante height"
 - args: --list-crs geodetic
   grep: EPSG:4326|EPSG:4979|EPSG:4978
   sort:
@@ -1872,8 +1873,9 @@ tests:
    Test that ETRF2000 to ETRF2014 only goes through ITRF2000, ITRF2008 or ITRF2014, and not ITRF9x or ITRF>2020
   args: -s ETRF2005 -t ETRF2014 --3d --summary --authority EPSG
   out: |
-    Candidate operations found: 1
+    Candidate operations found: 2
     unknown id, Conversion from ETRF2005 (geog3D) to ETRF2005 (geocentric) + Inverse of ITRF2005 to ETRF2005 (1) + ITRF2005 to ETRF2014 (1) + Conversion from ETRF2014 (geocentric) to ETRF2014 (geog3D), 0.01 m, Europe - onshore and offshore - ETRF extent - approximately 16°W to 33°E and 33°N to 84°N., time-dependent operation
+    unknown id, Conversion from ETRF2005 (geog3D) to ETRF2005 (geocentric) + ETRF2005 to ETRF2000 (1) + Inverse of ETRF2014 to ETRF2000 (1) + Conversion from ETRF2014 (geocentric) to ETRF2014 (geog3D), 0.02 m, Europe - onshore and offshore - ETRF extent - approximately 16°W to 33°E and 33°N to 84°N., time-dependent operation
 - comment: >
    Test that ETRF2000-PL to ETRF2014 is not negatively affected by https://github.com/OSGeo/PROJ/pull/4364 changes (the current actual result is not golden in any way, using ETRF2000 to ETRF2014 could probably make sense)
   args: -s ETRF2000-PL -t ETRF2014 --summary

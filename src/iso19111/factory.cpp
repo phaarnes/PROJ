@@ -106,16 +106,6 @@ namespace io {
 
 //! @cond Doxygen_Suppress
 
-// CRS subtypes
-#define GEOG_2D "geographic 2D"
-#define GEOG_3D "geographic 3D"
-#define GEOCENTRIC "geocentric"
-#define OTHER "other"
-#define PROJECTED "projected"
-#define ENGINEERING "engineering"
-#define VERTICAL "vertical"
-#define COMPOUND "compound"
-
 #define GEOG_2D_SINGLE_QUOTED "'geographic 2D'"
 #define GEOG_3D_SINGLE_QUOTED "'geographic 3D'"
 #define GEOCENTRIC_SINGLE_QUOTED "'geocentric'"
@@ -131,7 +121,7 @@ constexpr const char *CS_TYPE_ORDINAL = cs::OrdinalCS::WKT2_TYPE;
 constexpr int DATABASE_LAYOUT_VERSION_MAJOR = 1;
 // If the code depends on the new additions, then DATABASE_LAYOUT_VERSION_MINOR
 // must be incremented.
-constexpr int DATABASE_LAYOUT_VERSION_MINOR = 6;
+constexpr int DATABASE_LAYOUT_VERSION_MINOR = 7;
 
 constexpr size_t N_MAX_PARAMS = 7;
 
@@ -1261,7 +1251,8 @@ void DatabaseContext::Private::open(const std::string &databasePath,
 #ifndef USE_ONLY_EMBEDDED_RESOURCE_FILES
         path.resize(2048);
         const bool found =
-            pj_find_file(pjCtxt(), "proj.db", &path[0], path.size() - 1) != 0;
+            pj_find_file(pjCtxt(), "proj.db", &path[0], path.size() - 1,
+                         /* disable_network = */ true) != 0;
         path.resize(strlen(path.c_str()));
         if (!found)
 #endif
@@ -1390,19 +1381,13 @@ void DatabaseContext::Private::attachExtraDatabases(
             std::string sql("CREATE TEMP VIEW ");
             sql += tableStructure.name;
             sql += " AS ";
+            const auto columns = join(tableStructure.columns, ", ");
             for (size_t i = 0; i <= auxiliaryDatabasePaths.size(); ++i) {
                 std::string selectFromAux("SELECT ");
-                bool firstCol = true;
-                for (const auto &colName : tableStructure.columns) {
-                    if (!firstCol) {
-                        selectFromAux += ", ";
-                    }
-                    firstCol = false;
-                    selectFromAux += colName;
-                }
+                selectFromAux += columns;
                 selectFromAux += " FROM db_";
                 selectFromAux += toString(static_cast<int>(i));
-                selectFromAux += ".";
+                selectFromAux += '.';
                 selectFromAux += tableStructure.name;
 
                 try {
@@ -2231,7 +2216,7 @@ std::vector<std::string> DatabaseContext::Private::getInsertStatementsFor(
 // ---------------------------------------------------------------------------
 
 static std::string anchorEpochToStr(double val) {
-    constexpr int BUF_SIZE = 16;
+    constexpr int BUF_SIZE = 32;
     char szBuffer[BUF_SIZE];
     sqlite3_snprintf(BUF_SIZE, szBuffer, "%.3f", val);
     return szBuffer;
@@ -2519,12 +2504,12 @@ std::vector<std::string> DatabaseContext::Private::getInsertStatementsFor(
     identifyOrInsert(self, coordinateSystem, "GEODETIC_CRS", authName, code,
                      csAuthName, csCode, sqlStatements);
 
-    const char *type = GEOG_2D;
+    const char *type = CRS_SUBTYPE_GEOG_2D;
     if (coordinateSystem->axisList().size() == 3) {
         if (dynamic_cast<const crs::GeographicCRS *>(crs.get())) {
-            type = GEOG_3D;
+            type = CRS_SUBTYPE_GEOG_3D;
         } else {
-            type = GEOCENTRIC;
+            type = CRS_SUBTYPE_GEOCENTRIC;
         }
     }
 
@@ -3498,7 +3483,8 @@ bool DatabaseContext::lookForGridInfo(
             bool gridAvailableWithNewName =
                 pj_find_file(ctxt, proj_grid_name.c_str(),
                              &fullFilenameNewName[0],
-                             fullFilenameNewName.size() - 1) != 0;
+                             fullFilenameNewName.size() - 1,
+                             /* disable_network = */ true) != 0;
             proj_context_errno_set(ctxt, errno_before);
             fullFilenameNewName.resize(strlen(fullFilenameNewName.c_str()));
             if (gridAvailableWithNewName) {
@@ -4157,6 +4143,11 @@ struct AuthorityFactory::Private {
     crs::ProjectedCRSNNPtr createProjectedCRSEnd(const std::string &code,
                                                  const SQLResultSet &res);
 
+    SQLResultSet createDerivedProjectedCRSBegin(const std::string &code);
+    crs::DerivedProjectedCRSNNPtr
+    createDerivedProjectedCRSEnd(const std::string &code,
+                                 const SQLResultSet &res);
+
   private:
     DatabaseContextNNPtr context_;
     std::string authority_;
@@ -4242,7 +4233,8 @@ util::PropertyMap AuthorityFactory::Private::createPropertiesSearchUsages(
             "extent.north_lat, extent.west_lon, extent.east_lon, "
             "scope.scope, "
             "(CASE WHEN scope.scope LIKE '%large scale%' THEN 0 ELSE 1 END) "
-            "AS score "
+            "AS score, "
+            "usage.auth_name, usage.code "
             "FROM usage "
             "JOIN extent ON usage.extent_auth_name = extent.auth_name AND "
             "usage.extent_code = extent.code "
@@ -4254,9 +4246,27 @@ util::PropertyMap AuthorityFactory::Private::createPropertiesSearchUsages(
             "NOT (usage.extent_auth_name = 'PROJ' AND "
             "usage.extent_code = 'EXTENT_UNKNOWN') AND "
             "NOT (usage.scope_auth_name = 'PROJ' AND "
-            "usage.scope_code = 'SCOPE_UNKNOWN') "
-            "ORDER BY score, usage.auth_name, usage.code");
+            "usage.scope_code = 'SCOPE_UNKNOWN') ");
         res = run(sql, {table_name, authority(), code});
+
+        // This replaces use of "ORDER BY score, usage.auth_name, usage.code" in
+        // the above query because it is significantly slower with the use of an
+        // auxiliary database.
+        res.sort([](auto &left, auto &right) {
+            auto scoreLeft = std::stoi(left[6]);
+            auto scoreRight = std::stoi(right[6]);
+            if (scoreLeft == scoreRight) {
+                auto &authLeft = left[7];
+                auto &authRight = right[7];
+                if (authLeft == authRight) {
+                    auto &codeLeft = left[8];
+                    auto &codeRight = right[8];
+                    return codeLeft < codeRight;
+                }
+                return authLeft < authRight;
+            }
+            return scoreLeft < scoreRight;
+        });
     }
     std::vector<ObjectDomainNNPtr> usages;
     for (const auto &row : res) {
@@ -4514,6 +4524,10 @@ AuthorityFactory::createObject(const std::string &code) const {
     if (table_name == "projected_crs") {
         return util::nn_static_pointer_cast<util::BaseObject>(
             createProjectedCRS(code));
+    }
+    if (table_name == "derived_projected_crs") {
+        return util::nn_static_pointer_cast<util::BaseObject>(
+            createDerivedProjectedCRS(code));
     }
     if (table_name == "compound_crs") {
         return util::nn_static_pointer_cast<util::BaseObject>(
@@ -5528,7 +5542,8 @@ AuthorityFactory::createGeodeticCRS(const std::string &code,
 
         auto ellipsoidalCS =
             util::nn_dynamic_pointer_cast<cs::EllipsoidalCS>(cs);
-        if ((type == GEOG_2D || type == GEOG_3D) && ellipsoidalCS) {
+        if ((type == CRS_SUBTYPE_GEOG_2D || type == CRS_SUBTYPE_GEOG_3D) &&
+            ellipsoidalCS) {
             auto crsRet = crs::GeographicCRS::create(
                 props, datum, datumEnsemble, NN_NO_CHECK(ellipsoidalCS));
             d->context()->d->cache(cacheKey, crsRet);
@@ -5536,7 +5551,7 @@ AuthorityFactory::createGeodeticCRS(const std::string &code,
         }
 
         auto geocentricCS = util::nn_dynamic_pointer_cast<cs::CartesianCS>(cs);
-        if (type == GEOCENTRIC && geocentricCS) {
+        if (type == CRS_SUBTYPE_GEOCENTRIC && geocentricCS) {
             auto crsRet = crs::GeodeticCRS::create(props, datum, datumEnsemble,
                                                    NN_NO_CHECK(geocentricCS));
             d->context()->d->cache(cacheKey, crsRet);
@@ -5544,7 +5559,7 @@ AuthorityFactory::createGeodeticCRS(const std::string &code,
         }
 
         auto sphericalCS = util::nn_dynamic_pointer_cast<cs::SphericalCS>(cs);
-        if (type == OTHER && sphericalCS) {
+        if (type == CRS_SUBTYPE_OTHER && sphericalCS) {
             auto crsRet = crs::GeodeticCRS::create(props, datum, datumEnsemble,
                                                    NN_NO_CHECK(sphericalCS));
             d->context()->d->cache(cacheKey, crsRet);
@@ -5935,6 +5950,125 @@ AuthorityFactory::Private::createProjectedCRSEnd(const std::string &code,
 
 // ---------------------------------------------------------------------------
 
+/** \brief Returns a crs::DerivedProjectedCRS from the specified code.
+ *
+ * @param code Object code allocated by authority.
+ * @return object.
+ * @throw NoSuchAuthorityCodeException if there is no matching object.
+ * @throw FactoryException in case of other errors.
+ */
+crs::DerivedProjectedCRSNNPtr
+AuthorityFactory::createDerivedProjectedCRS(const std::string &code) const {
+    const auto cacheKey(d->authority() + code);
+    auto crs = d->context()->d->getCRSFromCache(cacheKey);
+    if (crs) {
+        auto derivedProjCRS =
+            std::dynamic_pointer_cast<crs::DerivedProjectedCRS>(crs);
+        if (derivedProjCRS) {
+            return NN_NO_CHECK(derivedProjCRS);
+        }
+        throw NoSuchAuthorityCodeException("derivedProjectedCRS not found",
+                                           d->authority(), code);
+    }
+    return d->createDerivedProjectedCRSEnd(
+        code, d->createDerivedProjectedCRSBegin(code));
+}
+
+// ---------------------------------------------------------------------------
+//! @cond Doxygen_Suppress
+
+/** Returns the result of the SQL query needed by createDerivedProjectedCRSEnd
+ */
+SQLResultSet AuthorityFactory::Private::createDerivedProjectedCRSBegin(
+    const std::string &code) {
+    return runWithCodeParam(
+        "SELECT name, coordinate_system_auth_name, "
+        "coordinate_system_code, base_crs_auth_name, base_crs_code, "
+        "conversion_auth_name, conversion_code, "
+        "text_definition, "
+        "deprecated FROM derived_projected_crs WHERE auth_name = ? AND code = "
+        "?",
+        code);
+}
+
+// ---------------------------------------------------------------------------
+
+/** Build a DerivedProjectedCRS from the result of
+ * createDerivedProjectedCRSBegin() */
+crs::DerivedProjectedCRSNNPtr
+AuthorityFactory::Private::createDerivedProjectedCRSEnd(
+    const std::string &code, const SQLResultSet &res) {
+    const auto cacheKey(authority() + code);
+    if (res.empty()) {
+        throw NoSuchAuthorityCodeException("derivedProjectedCRS not found",
+                                           authority(), code);
+    }
+    try {
+        const auto &row = res.front();
+        const auto &name = row[0];
+        const auto &cs_auth_name = row[1];
+        const auto &cs_code = row[2];
+        const auto &base_crs_auth_name = row[3];
+        const auto &base_crs_code = row[4];
+        const auto &conversion_auth_name = row[5];
+        const auto &conversion_code = row[6];
+        const auto &text_definition = row[7];
+        const bool deprecated = row[8] == "1";
+
+        auto props = createPropertiesSearchUsages("derived_projected_crs", code,
+                                                  name, deprecated);
+
+        if (!text_definition.empty()) {
+            DatabaseContext::Private::RecursionDetector detector(context());
+            auto obj = createFromUserInput(
+                pj_add_type_crs_if_needed(text_definition), context());
+            auto derivedProjCRS =
+                dynamic_cast<const crs::DerivedProjectedCRS *>(obj.get());
+            if (derivedProjCRS) {
+                auto conv = derivedProjCRS->derivingConversion();
+                auto newConv =
+                    (conv->nameStr() == "unnamed")
+                        ? operation::Conversion::create(
+                              util::PropertyMap().set(
+                                  common::IdentifiedObject::NAME_KEY, name),
+                              conv->method(), conv->parameterValues())
+                        : std::move(conv);
+                auto crsRet = crs::DerivedProjectedCRS::create(
+                    props, derivedProjCRS->baseCRS(), newConv,
+                    derivedProjCRS->coordinateSystem());
+                context()->d->cache(cacheKey, crsRet);
+                return crsRet;
+            }
+            throw FactoryException(
+                "text_definition does not define a DerivedProjectedCRS");
+        }
+
+        auto cs = createFactory(cs_auth_name)->createCoordinateSystem(cs_code);
+
+        auto baseCRS = createFactory(base_crs_auth_name)
+                           ->createProjectedCRS(base_crs_code);
+
+        auto conv = createFactory(conversion_auth_name)
+                        ->createConversion(conversion_code);
+        if (conv->nameStr() == "unnamed") {
+            conv = conv->shallowClone();
+            conv->setProperties(util::PropertyMap().set(
+                common::IdentifiedObject::NAME_KEY, name));
+        }
+
+        auto crsRet =
+            crs::DerivedProjectedCRS::create(props, baseCRS, conv, cs);
+        context()->d->cache(cacheKey, crsRet);
+        return crsRet;
+    } catch (const std::exception &ex) {
+        throw buildFactoryException("derivedProjectedCRS", authority(), code,
+                                    ex);
+    }
+}
+//! @endcond
+
+// ---------------------------------------------------------------------------
+
 /** \brief Returns a crs::CompoundCRS from the specified code.
  *
  * @param code Object code allocated by authority.
@@ -6085,20 +6219,23 @@ AuthorityFactory::createCoordinateReferenceSystem(const std::string &code,
                                            code);
     }
     const auto &type = res.front()[0];
-    if (type == GEOG_2D || type == GEOG_3D || type == GEOCENTRIC ||
-        type == OTHER) {
+    if (type == CRS_SUBTYPE_GEOG_2D || type == CRS_SUBTYPE_GEOG_3D ||
+        type == CRS_SUBTYPE_GEOCENTRIC || type == CRS_SUBTYPE_OTHER) {
         return createGeodeticCRS(code);
     }
-    if (type == VERTICAL) {
+    if (type == CRS_SUBTYPE_VERTICAL) {
         return createVerticalCRS(code);
     }
-    if (type == PROJECTED) {
+    if (type == CRS_SUBTYPE_PROJECTED) {
         return createProjectedCRS(code);
     }
-    if (type == ENGINEERING) {
+    if (type == CRS_SUBTYPE_DERIVED_PROJECTED) {
+        return createDerivedProjectedCRS(code);
+    }
+    if (type == CRS_SUBTYPE_ENGINEERING) {
         return createEngineeringCRS(code);
     }
-    if (allowCompound && type == COMPOUND) {
+    if (allowCompound && type == CRS_SUBTYPE_COMPOUND) {
         return createCompoundCRS(code);
     }
     throw FactoryException("unhandled CRS type: " + type);
@@ -7481,6 +7618,9 @@ static bool useIrrelevantPivot(const operation::CoordinateOperationNNPtr &op,
  * must intersect.
  * @param intersectingExtent2 Optional extent that the resulting operations
  * must intersect.
+ * @param skipIntermediateExtentIntersection When true, skip the requirement
+ * that the extents of the two intermediate operations must intersect each
+ * other. This is useful when SourceTargetCRSExtentUse::NONE is set.
  * @return list of coordinate operations
  * @throw NoSuchAuthorityCodeException if there is no matching object.
  * @throw FactoryException in case of other errors.
@@ -7497,7 +7637,8 @@ AuthorityFactory::createFromCRSCodesWithIntermediates(
     ObjectType allowedIntermediateObjectType,
     const std::vector<std::string> &allowedAuthorities,
     const metadata::ExtentPtr &intersectingExtent1,
-    const metadata::ExtentPtr &intersectingExtent2) const {
+    const metadata::ExtentPtr &intersectingExtent2,
+    bool skipIntermediateExtentIntersection) const {
 
     std::vector<operation::CoordinateOperationNNPtr> listTmp;
 
@@ -7669,9 +7810,12 @@ AuthorityFactory::createFromCRSCodesWithIntermediates(
     auto params = ListOfParams{sourceCRSAuthName, sourceCRSCode,
                                targetCRSAuthName, targetCRSCode};
     std::string additionalWhere(
-        "AND v1.deprecated = 0 AND v2.deprecated = 0 "
-        "AND intersects_bbox(south_lat1, west_lon1, north_lat1, east_lon1, "
-        "south_lat2, west_lon2, north_lat2, east_lon2) = 1 ");
+        skipIntermediateExtentIntersection
+            ? "AND v1.deprecated = 0 AND v2.deprecated = 0 "
+            : "AND v1.deprecated = 0 AND v2.deprecated = 0 "
+              "AND intersects_bbox(south_lat1, west_lon1, north_lat1, "
+              "east_lon1, south_lat2, west_lon2, north_lat2, "
+              "east_lon2) = 1 ");
     if (!allowedAuthorities.empty()) {
         additionalWhere += "AND v1.auth_name IN (";
         for (size_t i = 0; i < allowedAuthorities.size(); i++) {
@@ -8123,7 +8267,8 @@ AuthorityFactory::createBetweenGeodeticCRSWithDatumBasedIntermediates(
     bool considerKnownGridsAsAvailable, bool discardSuperseded,
     const std::vector<std::string> &allowedAuthorities,
     const metadata::ExtentPtr &intersectingExtent1,
-    const metadata::ExtentPtr &intersectingExtent2) const {
+    const metadata::ExtentPtr &intersectingExtent2,
+    bool skipIntermediateExtentIntersection) const {
 
     std::vector<operation::CoordinateOperationNNPtr> listTmp;
 
@@ -8370,7 +8515,8 @@ AuthorityFactory::createBetweenGeodeticCRSWithDatumBasedIntermediates(
                 auto bbox2 = metadata::GeographicBoundingBox::create(
                     trfmTarget.west, trfmTarget.south, trfmTarget.east,
                     trfmTarget.north);
-                if (!bbox1->intersects(bbox2))
+                if (!skipIntermediateExtentIntersection &&
+                    !bbox1->intersects(bbox2))
                     continue;
                 bool okBbox2 = true;
                 for (const auto bbox : extraBbox)
@@ -8725,6 +8871,9 @@ AuthorityFactory::getAuthorityCodes(const ObjectType &type,
     case ObjectType::ENGINEERING_CRS:
         sql = "SELECT code FROM engineering_crs WHERE ";
         break;
+    case ObjectType::DERIVED_PROJECTED_CRS:
+        sql = "SELECT code FROM derived_projected_crs WHERE ";
+        break;
     case ObjectType::COORDINATE_OPERATION:
         sql =
             "SELECT code FROM coordinate_operation_with_conversion_view WHERE ";
@@ -8786,7 +8935,8 @@ AuthorityFactory::getDescriptionText(const std::string &code) const {
         const auto &tableName = row[1];
         if (tableName == "geodetic_crs" || tableName == "projected_crs" ||
             tableName == "vertical_crs" || tableName == "compound_crs" ||
-            tableName == "engineering_crs") {
+            tableName == "engineering_crs" ||
+            tableName == "derived_projected_crs") {
             return row[0];
         } else if (text.empty()) {
             text = row[0];
@@ -8896,6 +9046,16 @@ std::list<AuthorityFactory::CRSInfo> AuthorityFactory::getCRSInfoList() const {
         sql += "WHERE c.auth_name = ? ";
         params.emplace_back(d->authority());
     }
+    // FIXME: we can't handle non-EARTH compound CRS for now
+    sql += "UNION ALL SELECT c.auth_name, c.code, c.name, 'derived projected', "
+           "c.deprecated, "
+           "a.west_lon, a.south_lat, a.east_lon, a.north_lat, "
+           "a.description, NULL, 'Earth' FROM derived_projected_crs c ";
+    sql += getSqlArea("derived_projected_crs");
+    if (d->hasAuthorityRestriction()) {
+        sql += "WHERE c.auth_name = ? ";
+        params.emplace_back(d->authority());
+    }
     sql += ") r ORDER BY auth_name, code";
     auto sqlRes = d->run(sql, params);
     std::list<AuthorityFactory::CRSInfo> res;
@@ -8905,22 +9065,24 @@ std::list<AuthorityFactory::CRSInfo> AuthorityFactory::getCRSInfoList() const {
         info.code = row[1];
         info.name = row[2];
         const auto &type = row[3];
-        if (type == GEOG_2D) {
+        if (type == CRS_SUBTYPE_GEOG_2D) {
             info.type = AuthorityFactory::ObjectType::GEOGRAPHIC_2D_CRS;
-        } else if (type == GEOG_3D) {
+        } else if (type == CRS_SUBTYPE_GEOG_3D) {
             info.type = AuthorityFactory::ObjectType::GEOGRAPHIC_3D_CRS;
-        } else if (type == GEOCENTRIC) {
+        } else if (type == CRS_SUBTYPE_GEOCENTRIC) {
             info.type = AuthorityFactory::ObjectType::GEOCENTRIC_CRS;
-        } else if (type == OTHER) {
+        } else if (type == CRS_SUBTYPE_OTHER) {
             info.type = AuthorityFactory::ObjectType::GEODETIC_CRS;
-        } else if (type == PROJECTED) {
+        } else if (type == CRS_SUBTYPE_PROJECTED) {
             info.type = AuthorityFactory::ObjectType::PROJECTED_CRS;
-        } else if (type == VERTICAL) {
+        } else if (type == CRS_SUBTYPE_VERTICAL) {
             info.type = AuthorityFactory::ObjectType::VERTICAL_CRS;
-        } else if (type == COMPOUND) {
+        } else if (type == CRS_SUBTYPE_COMPOUND) {
             info.type = AuthorityFactory::ObjectType::COMPOUND_CRS;
-        } else if (type == ENGINEERING) {
+        } else if (type == CRS_SUBTYPE_ENGINEERING) {
             info.type = AuthorityFactory::ObjectType::ENGINEERING_CRS;
+        } else if (type == CRS_SUBTYPE_DERIVED_PROJECTED) {
+            info.type = AuthorityFactory::ObjectType::DERIVED_PROJECTED_CRS;
         }
         info.deprecated = row[4] == "1";
         if (row[5].empty()) {
@@ -9230,10 +9392,10 @@ AuthorityFactory::createObjectsFromNameEx(
             for (const auto &tableName :
                  {"prime_meridian", "ellipsoid", "geodetic_datum",
                   "vertical_datum", "engineering_datum", "geodetic_crs",
-                  "projected_crs", "vertical_crs", "compound_crs",
-                  "engineering_crs", "conversion", "helmert_transformation",
-                  "grid_transformation", "other_transformation",
-                  "concatenated_operation"}) {
+                  "projected_crs", "derived_projected_crs", "vertical_crs",
+                  "compound_crs", "engineering_crs", "conversion",
+                  "helmert_transformation", "grid_transformation",
+                  "other_transformation", "concatenated_operation"}) {
                 if (!(startsWithDUnderscore &&
                       strcmp(tableName, "vertical_datum") == 0)) {
                     res.emplace_back(TableType(tableName, std::string()));
@@ -9286,25 +9448,36 @@ AuthorityFactory::createObjectsFromNameEx(
                     res.emplace_back(TableType("compound_crs", std::string()));
                     res.emplace_back(
                         TableType("engineering_crs", std::string()));
+                    res.emplace_back(
+                        TableType("derived_projected_crs", std::string()));
                     break;
                 case ObjectType::GEODETIC_CRS:
                     res.emplace_back(TableType("geodetic_crs", std::string()));
                     break;
                 case ObjectType::GEOCENTRIC_CRS:
-                    res.emplace_back(TableType("geodetic_crs", GEOCENTRIC));
+                    res.emplace_back(
+                        TableType("geodetic_crs", CRS_SUBTYPE_GEOCENTRIC));
                     break;
                 case ObjectType::GEOGRAPHIC_CRS:
-                    res.emplace_back(TableType("geodetic_crs", GEOG_2D));
-                    res.emplace_back(TableType("geodetic_crs", GEOG_3D));
+                    res.emplace_back(
+                        TableType("geodetic_crs", CRS_SUBTYPE_GEOG_2D));
+                    res.emplace_back(
+                        TableType("geodetic_crs", CRS_SUBTYPE_GEOG_3D));
                     break;
                 case ObjectType::GEOGRAPHIC_2D_CRS:
-                    res.emplace_back(TableType("geodetic_crs", GEOG_2D));
+                    res.emplace_back(
+                        TableType("geodetic_crs", CRS_SUBTYPE_GEOG_2D));
                     break;
                 case ObjectType::GEOGRAPHIC_3D_CRS:
-                    res.emplace_back(TableType("geodetic_crs", GEOG_3D));
+                    res.emplace_back(
+                        TableType("geodetic_crs", CRS_SUBTYPE_GEOG_3D));
                     break;
                 case ObjectType::PROJECTED_CRS:
                     res.emplace_back(TableType("projected_crs", std::string()));
+                    break;
+                case ObjectType::DERIVED_PROJECTED_CRS:
+                    res.emplace_back(
+                        TableType("derived_projected_crs", std::string()));
                     break;
                 case ObjectType::VERTICAL_CRS:
                     res.emplace_back(TableType("vertical_crs", std::string()));
@@ -9611,6 +9784,8 @@ AuthorityFactory::createObjectsFromNameEx(
                     return factory->createGeodeticCRS(l_code);
                 } else if (l_table_name == "projected_crs") {
                     return factory->createProjectedCRS(l_code);
+                } else if (l_table_name == "derived_projected_crs") {
+                    return factory->createDerivedProjectedCRS(l_code);
                 } else if (l_table_name == "vertical_crs") {
                     return factory->createVerticalCRS(l_code);
                 } else if (l_table_name == "compound_crs") {

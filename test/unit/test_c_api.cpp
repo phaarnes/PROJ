@@ -1070,9 +1070,9 @@ TEST_F(CApi, proj_create_from_database) {
                   2005.0);
     }
     {
-        // Norway Normal Null 2000
+        // RH2000 height
         auto datum = proj_create_from_database(
-            m_ctxt, "EPSG", "1096", PJ_CATEGORY_DATUM, false, nullptr);
+            m_ctxt, "EPSG", "5208", PJ_CATEGORY_DATUM, false, nullptr);
         ASSERT_NE(datum, nullptr);
         ObjectKeeper keeper(datum);
         EXPECT_EQ(proj_get_type(datum),
@@ -1690,6 +1690,37 @@ TEST_F(CApi, transformation_from_boundCRS) {
     auto transf = proj_crs_get_coordoperation(m_ctxt, crs);
     ASSERT_NE(transf, nullptr);
     ObjectKeeper keeper_transf(transf);
+}
+
+// ---------------------------------------------------------------------------
+
+TEST_F(CApi,
+       proj_create_from_database_grid_alternative_null_old_proj_grid_name) {
+    // EPSG:9484 uses grid "href2008a.bin" whose grid_alternatives entry has
+    // proj_grid_name = "no_kv_href2008a.tif" but old_proj_grid_name IS NULL.
+    // Without the database context in pj_obj_create(),
+    // substitutePROJAlternativeGridNames() cannot resolve the grid name,
+    // leaving the original "href2008a.bin" in the PROJ string. With the fix,
+    // the CDN name "no_kv_href2008a.tif" is used instead.
+    //
+    // Enable network so that pj_obj_create() sets defer_grid_opening=true,
+    // allowing the pipeline to be created even without the grid file on disk.
+    proj_context_set_enable_network(m_ctxt, 1);
+
+    auto op = proj_create_from_database(m_ctxt, "EPSG", "9484",
+                                        PJ_CATEGORY_COORDINATE_OPERATION, false,
+                                        nullptr);
+    ASSERT_NE(op, nullptr);
+    ObjectKeeper keeper(op);
+
+    auto info = proj_pj_info(op);
+    ASSERT_NE(info.definition, nullptr);
+    EXPECT_TRUE(std::string(info.definition).find("no_kv_href2008a.tif") !=
+                std::string::npos)
+        << "Expected CDN grid name 'no_kv_href2008a.tif' in definition, got: "
+        << info.definition;
+
+    proj_context_set_enable_network(m_ctxt, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -7693,6 +7724,71 @@ TEST_F(CApi, proj_crs_add_horizontal_derived_conversion) {
         EXPECT_EQ(proj_crs_add_horizontal_derived_conversion(
                       m_ctxt, "my derived crs", geog_crs, conv, cs),
                   nullptr);
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+TEST_F(CApi, proj_crs_is_dynamic) {
+
+    {
+        // ITRF2020
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "9990",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_TRUE(proj_crs_is_dynamic(m_ctxt, crs));
+    }
+
+    {
+        // ETRS89
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "4258",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_FALSE(proj_crs_is_dynamic(m_ctxt, crs));
+    }
+
+    {
+        // RH2000 height
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "5613",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_TRUE(proj_crs_is_dynamic(m_ctxt, crs));
+    }
+
+    {
+        // EGM2008 height
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "3855",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_FALSE(proj_crs_is_dynamic(m_ctxt, crs));
+    }
+
+    {
+        // WGS 84 / Pseudo-Mercator +  EGM2008 geoid height
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "6871",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_FALSE(proj_crs_is_dynamic(m_ctxt, crs));
+    }
+
+    {
+        // ETRS89-SWE [SWEREF 99] + RH2000 height
+        auto crs = proj_create_from_database(m_ctxt, "EPSG", "5628",
+                                             PJ_CATEGORY_CRS, false, nullptr);
+        ASSERT_NE(crs, nullptr);
+        ObjectKeeper keeper(crs);
+
+        EXPECT_TRUE(proj_crs_is_dynamic(m_ctxt, crs));
     }
 }
 

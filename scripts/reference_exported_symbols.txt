@@ -209,8 +209,8 @@ osgeo::proj::cs::CartesianCS::createEastingNorthing(osgeo::proj::common::UnitOfM
 osgeo::proj::cs::CartesianCS::createGeocentric(osgeo::proj::common::UnitOfMeasure const&)
 osgeo::proj::cs::CartesianCS::createNorthingEasting(osgeo::proj::common::UnitOfMeasure const&)
 osgeo::proj::cs::CartesianCS::createNorthPoleEastingSouthNorthingSouth(osgeo::proj::common::UnitOfMeasure const&)
-osgeo::proj::cs::CartesianCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&)
-osgeo::proj::cs::CartesianCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&)
+osgeo::proj::cs::CartesianCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, bool)
+osgeo::proj::cs::CartesianCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, bool)
 osgeo::proj::cs::CartesianCS::createSouthPoleEastingNorthNorthingNorth(osgeo::proj::common::UnitOfMeasure const&)
 osgeo::proj::cs::CartesianCS::createWestingSouthing(osgeo::proj::common::UnitOfMeasure const&)
 osgeo::proj::cs::CoordinateSystemAxis::abbreviation() const
@@ -234,6 +234,8 @@ osgeo::proj::cs::EllipsoidalCS::createLongitudeLatitude(osgeo::proj::common::Uni
 osgeo::proj::cs::EllipsoidalCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&)
 osgeo::proj::cs::EllipsoidalCS::create(osgeo::proj::util::PropertyMap const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&, dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::cs::CoordinateSystemAxis> > const&)
 osgeo::proj::cs::EllipsoidalCS::~EllipsoidalCS()
+osgeo::proj::cs::InvalidCoordinateSystem::~InvalidCoordinateSystem()
+osgeo::proj::cs::InvalidCoordinateSystem::InvalidCoordinateSystem(osgeo::proj::cs::InvalidCoordinateSystem const&)
 osgeo::proj::cs::Meridian::create(osgeo::proj::common::Angle const&)
 osgeo::proj::cs::Meridian::longitude() const
 osgeo::proj::cs::Meridian::~Meridian()
@@ -354,6 +356,7 @@ osgeo::proj::io::AuthorityFactory::createCoordinateReferenceSystem(std::string c
 osgeo::proj::io::AuthorityFactory::createCoordinateSystem(std::string const&) const
 osgeo::proj::io::AuthorityFactory::createDatumEnsemble(std::string const&, std::string const&) const
 osgeo::proj::io::AuthorityFactory::createDatum(std::string const&) const
+osgeo::proj::io::AuthorityFactory::createDerivedProjectedCRS(std::string const&) const
 osgeo::proj::io::AuthorityFactory::create(dropbox::oxygen::nn<std::shared_ptr<osgeo::proj::io::DatabaseContext> > const&, std::string const&)
 osgeo::proj::io::AuthorityFactory::createEllipsoid(std::string const&) const
 osgeo::proj::io::AuthorityFactory::createEngineeringCRS(std::string const&) const
@@ -361,7 +364,7 @@ osgeo::proj::io::AuthorityFactory::createEngineeringDatum(std::string const&) co
 osgeo::proj::io::AuthorityFactory::createExtent(std::string const&) const
 osgeo::proj::io::AuthorityFactory::createFromCoordinateReferenceSystemCodes(std::string const&, std::string const&) const
 osgeo::proj::io::AuthorityFactory::createFromCoordinateReferenceSystemCodes(std::string const&, std::string const&, std::string const&, std::string const&, bool, bool, bool, bool, bool, bool, std::shared_ptr<osgeo::proj::metadata::Extent> const&, std::shared_ptr<osgeo::proj::metadata::Extent> const&) const
-osgeo::proj::io::AuthorityFactory::createFromCRSCodesWithIntermediates(std::string const&, std::string const&, std::string const&, std::string const&, bool, bool, bool, bool, std::vector<std::pair<std::string, std::string>, std::allocator<std::pair<std::string, std::string> > > const&, osgeo::proj::io::AuthorityFactory::ObjectType, std::vector<std::string, std::allocator<std::string> > const&, std::shared_ptr<osgeo::proj::metadata::Extent> const&, std::shared_ptr<osgeo::proj::metadata::Extent> const&) const
+osgeo::proj::io::AuthorityFactory::createFromCRSCodesWithIntermediates(std::string const&, std::string const&, std::string const&, std::string const&, bool, bool, bool, bool, std::vector<std::pair<std::string, std::string>, std::allocator<std::pair<std::string, std::string> > > const&, osgeo::proj::io::AuthorityFactory::ObjectType, std::vector<std::string, std::allocator<std::string> > const&, std::shared_ptr<osgeo::proj::metadata::Extent> const&, std::shared_ptr<osgeo::proj::metadata::Extent> const&, bool) const
 osgeo::proj::io::AuthorityFactory::createGeodeticCRS(std::string const&) const
 osgeo::proj::io::AuthorityFactory::createGeodeticDatum(std::string const&) const
 osgeo::proj::io::AuthorityFactory::createGeographicCRS(std::string const&) const
@@ -833,7 +836,7 @@ pj_ctx::pj_ctx(pj_ctx const&)
 pj_ctx::set_ca_bundle_path(std::string const&)
 pj_ctx::set_search_paths(std::vector<std::string, std::allocator<std::string> > const&)
 pj_ell_set(pj_ctx*, ARG_list*, double*, double*)
-pj_find_file(pj_ctx*, char const*, char*, unsigned long)
+pj_find_file(pj_ctx*, char const*, char*, unsigned long, bool)
 pj_fwd(PJ_LP, PJconsts*)
 pj_get_datums_ref()
 pj_get_default_ctx()
@@ -1033,6 +1036,7 @@ proj_crs_get_sub_crs
 proj_crs_has_point_motion_operation
 proj_crs_info_list_destroy
 proj_crs_is_derived
+proj_crs_is_dynamic
 proj_crs_promote_to_3D
 proj_cs_get_axis_count
 proj_cs_get_axis_info

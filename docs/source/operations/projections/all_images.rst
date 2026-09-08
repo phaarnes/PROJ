@@ -292,6 +292,50 @@ List of all projection images
 ********************************************************************************
 
 
+:ref:`dsea`
+
+.. figure:: ./images/dsea.png
+   :width: 500 px
+   :align: center
+   :alt:   dsea
+
+
+********************************************************************************
+
+
+:ref:`dsea`
+
+.. figure:: ./images/dsea_a5.png
+   :width: 500 px
+   :align: center
+   :alt:   dsea
+
+
+********************************************************************************
+
+
+:ref:`dsea`
+
+.. figure:: ./images/dsea_crescent.png
+   :width: 500 px
+   :align: center
+   :alt:   dsea
+
+
+********************************************************************************
+
+
+:ref:`dsea`
+
+.. figure:: ./images/dsea_flower.png
+   :width: 500 px
+   :align: center
+   :alt:   dsea
+
+
+********************************************************************************
+
+
 :ref:`eck1`
 
 .. figure:: ./images/eck1.png
@@ -589,6 +633,17 @@ List of all projection images
 ********************************************************************************
 
 
+:ref:`hourglass`
+
+.. figure:: ./images/hourglass.png
+   :width: 500 px
+   :align: center
+   :alt:   hourglass
+
+
+********************************************************************************
+
+
 :ref:`igh`
 
 .. figure:: ./images/igh.png
@@ -644,12 +699,67 @@ List of all projection images
 ********************************************************************************
 
 
+:ref:`interrupted`
+
+.. figure:: ./images/interrupted.png
+   :width: 500 px
+   :align: center
+   :alt:   interrupted
+
+
+********************************************************************************
+
+
 :ref:`isea`
 
 .. figure:: ./images/isea.png
    :width: 500 px
    :align: center
    :alt:   isea
+
+
+********************************************************************************
+
+
+:ref:`isea`
+
+.. figure:: ./images/isea_dual.png
+   :width: 500 px
+   :align: center
+   :alt:   isea
+
+
+********************************************************************************
+
+
+:ref:`isea`
+
+.. figure:: ./images/isea_pole.png
+   :width: 500 px
+   :align: center
+   :alt:   isea
+
+
+********************************************************************************
+
+
+:ref:`ivea`
+
+.. figure:: ./images/ivea.png
+   :width: 500 px
+   :align: center
+   :alt:   ivea
+
+
+********************************************************************************
+
+
+:ref:`ivea`
+
+.. figure:: ./images/ivea_pole.png
+   :width: 500 px
+   :align: center
+   :alt:   ivea
 
 
 ********************************************************************************
@@ -1447,6 +1557,17 @@ List of all projection images
 ********************************************************************************
 
 
+:ref:`tmerczoned`
+
+.. figure:: ./images/tmerczoned.png
+   :width: 500 px
+   :align: center
+   :alt:   tmerczoned
+
+
+********************************************************************************
+
+
 :ref:`tobmerc`
 
 .. figure:: ./images/tobmerc.png
@@ -1475,6 +1596,39 @@ List of all projection images
    :width: 500 px
    :align: center
    :alt:   tpers
+
+
+********************************************************************************
+
+
+:ref:`tsea`
+
+.. figure:: ./images/tsea.png
+   :width: 500 px
+   :align: center
+   :alt:   tsea
+
+
+********************************************************************************
+
+
+:ref:`tsea`
+
+.. figure:: ./images/tsea_dual.png
+   :width: 500 px
+   :align: center
+   :alt:   tsea
+
+
+********************************************************************************
+
+
+:ref:`tsea`
+
+.. figure:: ./images/tsea_triangle.png
+   :width: 500 px
+   :align: center
+   :alt:   tsea
 
 
 ********************************************************************************

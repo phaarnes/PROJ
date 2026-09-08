@@ -117,6 +117,10 @@ class ProjectedCRS;
 using ProjectedCRSPtr = std::shared_ptr<ProjectedCRS>;
 using ProjectedCRSNNPtr = util::nn<ProjectedCRSPtr>;
 
+class DerivedProjectedCRS;
+using DerivedProjectedCRSPtr = std::shared_ptr<DerivedProjectedCRS>;
+using DerivedProjectedCRSNNPtr = util::nn<DerivedProjectedCRSPtr>;
+
 class CompoundCRS;
 using CompoundCRSPtr = std::shared_ptr<CompoundCRS>;
 using CompoundCRSNNPtr = util::nn<CompoundCRSPtr>;
@@ -1066,6 +1070,9 @@ class PROJ_GCC_DLL AuthorityFactory {
     PROJ_DLL crs::ProjectedCRSNNPtr
     createProjectedCRS(const std::string &code) const;
 
+    PROJ_DLL crs::DerivedProjectedCRSNNPtr
+    createDerivedProjectedCRS(const std::string &code) const;
+
     PROJ_DLL crs::CompoundCRSNNPtr
     createCompoundCRS(const std::string &code) const;
 
@@ -1125,6 +1132,8 @@ class PROJ_GCC_DLL AuthorityFactory {
         ENGINEERING_CRS,
         /** Object of type crs::EngineeringCRS */
         COMPOUND_CRS,
+        /** Object of type crs::DerivedProjectedCRS */
+        DERIVED_PROJECTED_CRS,
         /** Object of type operation::CoordinateOperation (and derived
            classes) */
         COORDINATE_OPERATION,
@@ -1259,7 +1268,8 @@ class PROJ_GCC_DLL AuthorityFactory {
         const std::vector<std::string> &allowedAuthorities =
             std::vector<std::string>(),
         const metadata::ExtentPtr &intersectingExtent1 = nullptr,
-        const metadata::ExtentPtr &intersectingExtent2 = nullptr) const;
+        const metadata::ExtentPtr &intersectingExtent2 = nullptr,
+        bool skipIntermediateExtentIntersection = false) const;
 
     PROJ_DLL std::string getOfficialNameFromAlias(
         const std::string &aliasedName, const std::string &tableName,
@@ -1326,7 +1336,8 @@ class PROJ_GCC_DLL AuthorityFactory {
         bool considerKnownGridsAsAvailable, bool discardSuperseded,
         const std::vector<std::string> &allowedAuthorities,
         const metadata::ExtentPtr &intersectingExtent1,
-        const metadata::ExtentPtr &intersectingExtent2) const;
+        const metadata::ExtentPtr &intersectingExtent2,
+        bool skipIntermediateExtentIntersection = false) const;
 
     typedef std::pair<common::IdentifiedObjectNNPtr, std::string>
         PairObjectName;

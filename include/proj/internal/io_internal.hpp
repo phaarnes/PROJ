@@ -45,6 +45,17 @@ NS_PROJ_START
 
 namespace io {
 
+// CRS subtypes
+#define CRS_SUBTYPE_GEOG_2D "geographic 2D"
+#define CRS_SUBTYPE_GEOG_3D "geographic 3D"
+#define CRS_SUBTYPE_GEOCENTRIC "geocentric"
+#define CRS_SUBTYPE_OTHER "other"
+#define CRS_SUBTYPE_PROJECTED "projected"
+#define CRS_SUBTYPE_DERIVED_PROJECTED "derived projected"
+#define CRS_SUBTYPE_ENGINEERING "engineering"
+#define CRS_SUBTYPE_VERTICAL "vertical"
+#define CRS_SUBTYPE_COMPOUND "compound"
+
 // ---------------------------------------------------------------------------
 
 class WKTConstants {
@@ -209,6 +220,12 @@ struct PROJ_GCC_DLL projCppContext {
     }
 
     NS_PROJ::io::DatabaseContextNNPtr PROJ_FOR_TEST getDatabaseContext();
+
+    /** Return the database context only if already opened.
+     * Does not attempt to open proj.db. */
+    inline NS_PROJ::io::DatabaseContextPtr getDatabaseContextIfOpen() const {
+        return databaseContext_;
+    }
 
     void closeDb() { databaseContext_ = nullptr; }
 };

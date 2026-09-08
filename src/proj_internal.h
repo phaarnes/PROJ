@@ -1004,6 +1004,8 @@ int pj_get_suggested_operation(PJ_CONTEXT *ctx,
 const PJ_UNITS *pj_list_linear_units();
 const PJ_UNITS *pj_list_angular_units();
 
+void pj_clear_proj_info();
+
 void pj_clear_hgridshift_knowngrids_cache();
 void pj_clear_vgridshift_knowngrids_cache();
 void pj_clear_gridshift_knowngrids_cache();
@@ -1064,7 +1066,7 @@ void pj_stderr_logger(void *, int, const char *);
 // PROJ_DLL for tests
 int PROJ_DLL pj_find_file(PJ_CONTEXT *ctx, const char *short_filename,
                           char *out_full_filename,
-                          size_t out_full_filename_size);
+                          size_t out_full_filename_size, bool disable_network);
 
 // To remove when PROJ_LIB definitely goes away
 void PROJ_DLL pj_stderr_proj_lib_deprecation_warning();

@@ -29,7 +29,6 @@ endfunction()
 generate_all_sql_in("${ALL_SQL_IN}" OFF PROJ_DB_SQL_MD5)
 
 file(WRITE "${DATA_BINARY_DIR}/PROJ_DB_SQL_MD5.h" "const char* PROJ_DB_SQL_MD5=\"${PROJ_DB_SQL_MD5}\";\n")
-
 if (NOT "${PROJ_DB_SQL_MD5}" STREQUAL "${PROJ_DB_SQL_EXPECTED_MD5}")
     message(WARNING "all.sql.in content has changed. Running extra validation checks when building proj.db...")
 
@@ -44,7 +43,7 @@ if (NOT "${PROJ_DB_SQL_MD5}" STREQUAL "${PROJ_DB_SQL_EXPECTED_MD5}")
     if(STATUS AND NOT STATUS EQUAL 0)
       message(FATAL_ERROR "Build of proj.db from ${ALL_SQL_IN_EXTRA_VALIDATION} failed")
     else()
-      message(FATAL_ERROR "Update 'set(PROJ_DB_SQL_EXPECTED_MD5 ...)' line in data/CMakeLists.txt with ${PROJ_DB_SQL_MD5} value")
+      message(FATAL_ERROR "Database is valid; please update data/sql/proj.db.sql.expected.md5 with ${PROJ_DB_SQL_MD5}")
     endif()
 endif()
 

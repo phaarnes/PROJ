@@ -205,8 +205,20 @@ PJ *pj_obj_create(PJ_CONTEXT *ctx, const BaseObjectNNPtr &objIn) {
         }
         if (bTryToExportToProj) {
             try {
+                // Use the database context if already open (e.g. when
+                // coming from proj_create_from_database), so that
+                // substitutePROJAlternativeGridNames() can resolve
+                // grid names via the grid_alternatives table.
+                // Do NOT open the database here — callers such as
+                // proj_create() with a plain pipeline string may run
+                // without proj.db (see commit 63c491eda3).
+                auto dbContext =
+                    ctx->cpp_context
+                        ? ctx->get_cpp_context()->getDatabaseContextIfOpen()
+                        : nullptr;
                 auto formatter = PROJStringFormatter::create(
-                    PROJStringFormatter::Convention::PROJ_5, nullptr);
+                    PROJStringFormatter::Convention::PROJ_5,
+                    std::move(dbContext));
                 auto projString = coordop->exportToPROJString(formatter.get());
                 const bool defer_grid_opening_backup = ctx->defer_grid_opening;
                 if (!defer_grid_opening_backup &&
@@ -2122,6 +2134,30 @@ int proj_crs_is_derived(PJ_CONTEXT *ctx, const PJ *crs) {
         return false;
     }
     return dynamic_cast<const DerivedCRS *>(l_crs) != nullptr;
+}
+
+// ---------------------------------------------------------------------------
+
+/** \brief Returns whether (at least one component of a) CRS has a dynamic
+ * reference frame
+ *
+ * @param ctx PROJ context, or NULL for default context
+ * @param crs Object of type CRS (must not be NULL)
+ * @return TRUE if the CRS is a dynamic CRS.
+ * @since 9.9
+ */
+int proj_crs_is_dynamic(PJ_CONTEXT *ctx, const PJ *crs) {
+    if (!crs) {
+        proj_context_errno_set(ctx, PROJ_ERR_OTHER_API_MISUSE);
+        proj_log_error(ctx, __FUNCTION__, "missing required input");
+        return false;
+    }
+    auto l_crs = dynamic_cast<const CRS *>(crs->iso_obj.get());
+    if (!l_crs) {
+        proj_log_error(ctx, __FUNCTION__, "Object is not a CRS");
+        return false;
+    }
+    return l_crs->isDynamic(/* considerWGS84AsDynamic = */ false);
 }
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@
 ################################################################################
 # General settings
 ################################################################################
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22.1)
 
 project(PROJ
   DESCRIPTION "PROJ coordinate transformation software library"
@@ -129,9 +129,15 @@ endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
   # Intel CXX compiler based on clang defaults to -ffast-math, which
   # breaks std::isinf(), std::isnan(), etc.
-  set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -fno-fast-math)
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -fno-fast-math)
-endif ()
+  string(APPEND CMAKE_C_FLAGS " -fno-fast-math")
+  string(APPEND CMAKE_CXX_FLAGS " -fno-fast-math")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+       CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13 AND
+       CMAKE_SIZEOF_VOID_P EQUAL 4)
+  # GCC 13 and later changed their C++ excess precision support, which impacts
+  # 32-bit builds. This restores the previous behavior.
+  string(APPEND CMAKE_CXX_FLAGS " -fexcess-precision=fast")
+endif()
 
 # Add other supported compiler flags
 if(("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU") OR ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang"))
@@ -238,17 +244,9 @@ if(DEFINED SQLITE3_LIBRARY)
   set(SQLite3_LIBRARY ${SQLITE3_LIBRARY})
 endif()
 
-find_package(SQLite3 REQUIRED)
-
+find_package(SQLite3 3.11 REQUIRED)
 if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
-  set_target_properties(SQLite::SQLite3 PROPERTIES IMPORTED_GLOBAL TRUE)
   add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
-endif()
-
-# Would build and run with older versions, but with horrible performance
-# See https://github.com/OSGeo/PROJ/issues/1718
-if(SQLite3_VERSION VERSION_LESS "3.11")
-  message(SEND_ERROR "SQLite3 >= 3.11 required!")
 endif()
 
 ################################################################################
@@ -387,10 +385,9 @@ endif()
 
 include(CheckCSourceCompiles)
 function (is_sharp_embed_available res)
-    if (NOT EMSCRIPTEN AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.21 AND
+    if (NOT EMSCRIPTEN AND
         ((CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 15.0) OR
          (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 19.0)))
-        # CMAKE_C_STANDARD=23 only supported since CMake 3.21
         set(TEST_SHARP_EMBED
           "static const unsigned char embedded[] = {\n#embed __FILE__\n};\nint main() { (void)embedded; return 0;}"
         )
@@ -501,51 +498,53 @@ install(FILES
 # "make dist" workalike
 ################################################################################
 
-set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "proj-${PROJ_VERSION}")
-set(CPACK_PACKAGE_VENDOR "OSGeo")
-set(CPACK_PACKAGE_VERSION_MAJOR ${PROJ_VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${PROJ_VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${PROJ_VERSION_PATCH})
-set(CPACK_VERBATIM_VARIABLES TRUE)
-set(CPACK_SOURCE_IGNORE_FILES
-  /\\..*  # any file/directory starting with .
-  /.*\\.yml
-  /.*\\.gz
-  /.*\\.zip
-  /.*build.*/
-  \\.deps
-  /autogen\\.sh
-  /autom4te\\.cache
-  /CODE_OF_CONDUCT.md
-  /CONTRIBUTING.md
-  /disabled_workflows/
-  /Dockerfile
-  /docs/
-  /Doxyfile
-  /HOWTO-RELEASE.md
-  /m4/lt*
-  /m4/libtool*
-  /media/
-  /schemas/
-  /test/fuzzers/
-  /test/gigs/.*gie\\.failing
-  /test/postinstall/
-  /travis/
-  ${PROJECT_BINARY_DIR}
-)
-
-include(CPack)
-
-get_property(_is_multi_config_generator GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(NOT _is_multi_config_generator)
-  add_custom_target(dist
-    COMMAND ${CMAKE_MAKE_PROGRAM} package_source
+if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+  set(CPACK_SOURCE_PACKAGE_FILE_NAME "proj-${PROJ_VERSION}")
+  set(CPACK_PACKAGE_VENDOR "OSGeo")
+  set(CPACK_PACKAGE_VERSION_MAJOR ${PROJ_VERSION_MAJOR})
+  set(CPACK_PACKAGE_VERSION_MINOR ${PROJ_VERSION_MINOR})
+  set(CPACK_PACKAGE_VERSION_PATCH ${PROJ_VERSION_PATCH})
+  set(CPACK_VERBATIM_VARIABLES TRUE)
+  set(CPACK_SOURCE_IGNORE_FILES
+    /\\..*  # any file/directory starting with .
+    /.*\\.yml
+    /.*\\.gz
+    /.*\\.zip
+    /.*build.*/
+    \\.deps
+    /autogen\\.sh
+    /autom4te\\.cache
+    /ci/
+    /CODE_OF_CONDUCT.md
+    /CONTRIBUTING.md
+    /disabled_workflows/
+    /Dockerfile
+    /docs/
+    /Doxyfile
+    /HOWTO-RELEASE.md
+    /m4/lt*
+    /m4/libtool*
+    /media/
+    /schemas/
+    /test/fuzzers/
+    /test/gigs/.*gie\\.failing
+    /test/postinstall/
+    /travis/
+    ${PROJECT_BINARY_DIR}
   )
-  message(STATUS "PROJ: Configured 'dist' target")
-endif()
+  include(CPack)
 
-configure_file(cmake/uninstall.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/proj_uninstall.cmake @ONLY)
-add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/proj_uninstall.cmake)
+  get_property(_is_multi_config_generator GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if(NOT _is_multi_config_generator)
+    add_custom_target(dist
+      COMMAND ${CMAKE_MAKE_PROGRAM} package_source
+    )
+    message(STATUS "PROJ: Configured 'dist' target")
+  endif()
+
+  configure_file(cmake/uninstall.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/proj_uninstall.cmake @ONLY)
+  add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/proj_uninstall.cmake)
+endif()
 
 message(STATUS "EMBED_RESOURCE_FILES=${EMBED_RESOURCE_FILES}")

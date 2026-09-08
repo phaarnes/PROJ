@@ -7,8 +7,7 @@ set(HAS_NETWORK OFF)  # evaluate if ON below
 
 if(TESTING_USE_NETWORK)
   if(NOT CMAKE_REQUIRED_QUIET)
-    # CMake 3.17+ use CHECK_START/CHECK_PASS/CHECK_FAIL
-    message(STATUS "Checking if network is available")
+    message(CHECK_START "Checking if network is available")
   endif()
   set(NO_CONNECTION 1)
   find_program(HAS_CURL curl)
@@ -45,13 +44,11 @@ if(TESTING_USE_NETWORK)
   if(NO_CONNECTION EQUAL 0)
     set(HAS_NETWORK ON)
     if(NOT CMAKE_REQUIRED_QUIET)
-      message(STATUS "Checking if network is available - yes")
+      message(CHECK_PASS "yes")
     endif()
   else()
     if(NOT CMAKE_REQUIRED_QUIET)
-      message(STATUS
-        "Checking if network is available - no; skipping network-dependent tests."
-      )
+      message(CHECK_FAIL "no; skipping network-dependent tests.")
     endif()
   endif()
 else()
@@ -78,7 +75,13 @@ proj_add_gie_test("adams_ws2" "gie/adams_ws2.gie")
 proj_add_gie_test("guyou" "gie/guyou.gie")
 proj_add_gie_test("peirce_q" "gie/peirce_q.gie")
 proj_add_gie_test("tinshift" "gie/tinshift.gie")
+proj_add_gie_test("tinshift_gpkg" "gie/tinshift_gpkg.gie")
 proj_add_gie_test("spilhaus" "gie/spilhaus.gie")
+proj_add_gie_test("epsg_no_grid" "gie/epsg_no_grid.gie")
+
+if(CURL_ENABLED AND RUN_NETWORK_DEPENDENT_TESTS)
+proj_add_gie_network_dependent_test("tinshift_gpkg_network" "gie/tinshift_gpkg_network.gie")
+endif()
 
 if(TIFF_ENABLED)
 proj_add_gie_test("Deformation" "gie/deformation.gie")
@@ -91,6 +94,7 @@ endif()
 
 if(TIFF_ENABLED AND CURL_ENABLED AND RUN_NETWORK_DEPENDENT_TESTS)
 proj_add_gie_network_dependent_test("nkg" "gie/nkg.gie")
+proj_add_gie_network_dependent_test("epsg_grid" "gie/epsg_grid.gie")
 endif()
 
 # GIGS tests. Uncommented tests are expected to fail due to issues with
